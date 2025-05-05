@@ -485,20 +485,8 @@
 			nodeData.children.push(...shadowChildren);
 		}
 
-		// Handle iframes
-		if (node.tagName === 'IFRAME') {
-			try {
-				const iframeDoc = node.contentDocument || node.contentWindow.document;
-				if (iframeDoc) {
-					const iframeChildren = Array.from(iframeDoc.body.childNodes).map(child =>
-						buildDomTree(child, node)
-					);
-					nodeData.children.push(...iframeChildren);
-				}
-			} catch (e) {
-				console.warn('Unable to access iframe:', node);
-			}
-		} else {
+		// Don't go through iframes: handle this through dom/parsing.py
+		if (node.tagName !== 'IFRAME') {
 			const children = Array.from(node.childNodes).map(child =>
 				buildDomTree(child, parentIframe)
 			);
