@@ -73,17 +73,20 @@ class ParseDomTreePipe:
 
             if node.get("tagName") == "iframe":
                 current_frame = current_frame.frame_locator(f"xpath={node['xpath']}")
-                iframe = current_frame.locator("html")
+                iframe = current_frame.locator("html > body")
 
                 try:
                     await iframe.wait_for(state="attached")
                     iframe_child = await iframe.evaluate(js_code, config.model_dump())
                 except PlaywrightTimeoutError as e:
                     raise SnapshotProcessingError(None, f"Timeout when trying to access iframe {iframe}") from e
-                node["children"] = [iframe_child]
+                children = await traverse_parse_iframes(iframe_child, current_frame) or {}
+                node["children"] = children.get("children", [])
 
-            children = [await traverse_parse_iframes(child, current_frame) for child in node.get("children", [])]
-            node["children"] = [child for child in children if child is not None]
+            else:
+                children = [await traverse_parse_iframes(child, current_frame) for child in node.get("children", [])]
+                node["children"] = [child for child in children if child is not None]
+
             return node
 
         if pre_node is None:
