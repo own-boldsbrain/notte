@@ -1,4 +1,3 @@
-import os
 from pathlib import Path
 from typing import Any, TypeAlias
 from unittest import TestCase
@@ -121,15 +120,18 @@ SINGLE_WEBSITES = MULTI_WEBSITES + [
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(bool(os.getenv("RUNNING_IN_CI")), reason="Flaky on CI for some reason")
 @pytest.mark.parametrize("url", SINGLE_WEBSITES)
 async def test_parsing_disabled_websecurity_session(url: str):
-    old_res, new_res = await get_parsed_nodes_single_session(url, max_depth=20)
-    TestCase().assertListEqual(old_res, new_res)
+    old_session = NotteSession(
+        config=NotteSessionConfig().disable_perception().headless().disable_web_security(),
+        llmserve=MockLLMService(mock_response=""),
+    )
+    raise ValueError(old_session.window.page.viewport_size)
+    # old_res, new_res = await get_parsed_nodes_single_session(url, max_depth=20)
+    # TestCase().assertListEqual(old_res, new_res)
 
 
 @pytest.mark.asyncio
-@pytest.mark.skipif(bool(os.getenv("RUNNING_IN_CI")), reason="Flaky on CI for some reason")
 @pytest.mark.parametrize("url", MULTI_WEBSITES)
 async def test_parsing_enabled_websecurity_session(url: str):
     old_res, new_res = await get_parsed_nodes_multi_session(url, max_depth=5)
