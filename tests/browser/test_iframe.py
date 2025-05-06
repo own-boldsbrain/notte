@@ -122,15 +122,8 @@ SINGLE_WEBSITES = MULTI_WEBSITES + [
 @pytest.mark.asyncio
 @pytest.mark.parametrize("url", SINGLE_WEBSITES)
 async def test_parsing_disabled_websecurity_session(url: str):
-    old_session = NotteSession(
-        config=NotteSessionConfig().disable_perception().headless().disable_web_security(),
-        llmserve=MockLLMService(mock_response=""),
-    )
-    async with old_session as sesh:
-        _ = await sesh.goto("https://bing.com")
-        raise ValueError(sesh.window.page.viewport_size)
-    # old_res, new_res = await get_parsed_nodes_single_session(url, max_depth=20)
-    # TestCase().assertListEqual(old_res, new_res)
+    old_res, new_res = await get_parsed_nodes_single_session(url, max_depth=10)
+    TestCase().assertListEqual(old_res, new_res)
 
 
 @pytest.mark.asyncio
