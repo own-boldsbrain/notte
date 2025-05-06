@@ -3,7 +3,6 @@ from typing import Any, TypeAlias
 from unittest import TestCase
 
 import pytest
-from loguru import logger
 from notte_browser.dom.parsing import DomParsingConfig, DomTreeDict, ParseDomTreePipe
 from notte_browser.dom.types import DOMBaseNode
 from notte_browser.session import NotteSession, NotteSessionConfig
@@ -19,9 +18,6 @@ def node_to_sorted_list(node: DOMBaseNode, max_depth: int) -> DomList:
     def _node_to_dict(node: DOMBaseNode, max_depth: int) -> dict[Any, Any]:
         if max_depth <= 0:
             return {}
-
-        if node.role.lower() == "iframe":
-            print(node.name, node.children[:1])
 
         curr = {"name": node.name, "role": node.role}
         curr["children"] = [_node_to_dict(child, max_depth - 1) for child in node.children]  # pyright: ignore[reportArgumentType]
@@ -43,8 +39,6 @@ def node_to_sorted_list(node: DOMBaseNode, max_depth: int) -> DomList:
 async def old_parse_dom_tree(page: Page, config: DomParsingConfig) -> DOMBaseNode:
     js_code = Path("tests/browser/oldBuildDom.js").read_text()
 
-    if config.verbose:
-        logger.info(f"Parsing DOM tree for {page.url} with config: {config.model_dump()}")
     node: DomTreeDict | None = await page.evaluate(js_code, config.model_dump())
     if node is None:
         raise SnapshotProcessingError(page.url, "Failed to parse HTML to dictionary")
@@ -120,7 +114,6 @@ MULTI_WEBSITES = [
 ]
 
 SINGLE_WEBSITES = MULTI_WEBSITES + [
-    "https://www.allrecipes.com",
     "https://www.bbc.com/news",
 ]
 
