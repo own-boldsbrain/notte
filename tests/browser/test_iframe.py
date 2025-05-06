@@ -12,6 +12,9 @@ from patchright.async_api import Page
 from tests.mock.mock_service import MockLLMService
 
 DomList: TypeAlias = list[Any]
+USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 6.3; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/96.0.4664.45 Safari/537.36"
+)
 
 
 def node_to_sorted_list(node: DOMBaseNode, max_depth: int) -> DomList:
@@ -64,7 +67,7 @@ async def get_parsed_nodes_single_session(website_url: str, max_depth: int) -> t
 
     # start browser with disabled web security, old parse dom tree
     old_session = NotteSession(
-        config=NotteSessionConfig().disable_perception().headless().disable_web_security(),
+        config=NotteSessionConfig().disable_perception().headless().disable_web_security().set_user_agent(USER_AGENT),
         llmserve=MockLLMService(mock_response=""),
     )
 
@@ -84,11 +87,11 @@ async def get_parsed_nodes_multi_session(website_url: str, max_depth: int) -> tu
     config = DomParsingConfig()
 
     old_session = NotteSession(
-        config=NotteSessionConfig().disable_perception().headless().disable_web_security(),
+        config=NotteSessionConfig().disable_perception().headless().disable_web_security().set_user_agent(USER_AGENT),
         llmserve=MockLLMService(mock_response=""),
     )
     new_session = NotteSession(
-        config=NotteSessionConfig().disable_perception().headless().enable_web_security(),
+        config=NotteSessionConfig().disable_perception().headless().enable_web_security().set_user_agent(USER_AGENT),
         llmserve=MockLLMService(mock_response=""),
     )
 
@@ -110,8 +113,8 @@ async def get_parsed_nodes_multi_session(website_url: str, max_depth: int) -> tu
 
 
 MULTI_WEBSITES = [
-    "https://www.espn.co.uk/",
     "https://www.thetimes.com/",
+    "https://www.espn.co.uk/",
 ]
 
 SINGLE_WEBSITES = MULTI_WEBSITES + [
