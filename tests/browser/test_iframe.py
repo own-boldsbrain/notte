@@ -101,6 +101,7 @@ async def get_parsed_nodes_multi_session(website_url: str, max_depth: int) -> tu
     # start browser with enabled web security, new parse dom tree
     async with new_session as sesh:
         _ = await sesh.goto(website_url)
+        await sesh.window.long_wait()
         new_res = node_to_sorted_list(
             await ParseDomTreePipe.parse_dom_tree(sesh.window.page, config), max_depth=max_depth
         )
