@@ -18,9 +18,14 @@ Remember: The agent can only click, type, scroll, and select specific elements o
 """
 
 NUDGE_SYSTEM_PROMPT = """Help web ai agents solve simple problems by providing clear, direct guidance:
-1) Identify the exact issue in 1-2 sentences
+
+1) Identify any issue the agent might be facing in 1-2 sentences
 2) Try to reason about simple fixes, or other approaches that the agent might have missed.
-3) Suggest 1-2 simple alternative approaches that should be implementable with only simple actions such as: click, type, scroll, or select.
+3) Suggest 1-2 simple alternative approaches that should be easily implementable
+
+Your goal is to help in reasoning, think outside the box and challenge a bit the information that the original agent collected.
+Do not focus on the technical aspect, your goal is to work similarly to a human with clear mind,
+that can effortlessly navigate the web, but without deep technical knowledge.
 
 Keep suggestions under 5 sentences each. Avoid complex explanations.
 Always prioritize the simplest possible solution that will work.
@@ -31,7 +36,7 @@ The next messages will come from the web ai agent: help them solve their task.
 class PerplexityModule:
     def __init__(self):
         ENV_VAR = "PERPLEXITY_API_KEY"
-        self.api_key = os.getenv(ENV_VAR)
+        self.api_key: str | None = os.getenv(ENV_VAR)
         if self.api_key is None:
             raise ValueError(f"Set env variable {ENV_VAR}")
 
@@ -67,6 +72,9 @@ class PerplexityModule:
         ]
 
         logger.warning(f"input: {json.dumps(perp_messages, indent=2)}")
+        with open("perplexity_input.json", "w") as f:
+            json.dump(perp_messages, f)
+
         data = {"model": "sonar", "messages": perplexity_messages}
         resp = self.session.post("https://api.perplexity.ai/chat/completions", json=data)
         logger.warning(f"out: {json.dumps(resp.json())}")
