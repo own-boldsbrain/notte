@@ -35,7 +35,7 @@ from notte_agent.falco.perception import FalcoPerception
 from notte_agent.falco.prompt import FalcoPrompt
 from notte_agent.falco.trajectory_history import FalcoTrajectoryHistory
 from notte_agent.falco.types import StepAgentOutput
-from notte_integrations.perplexity.nudger import PerplexityModule
+from notte_integrations.perplexity.nudger import PerplexityModule  # pyright: ignore [reportMissingTypeStubs]
 
 # TODO: list
 # handle tooling calling methods for different providers (if not supported by litellm)
@@ -75,12 +75,13 @@ class FalcoAgent(BaseAgent):
         config: FalcoAgentConfig,
         window: BrowserWindow | None = None,
         vault: BaseVault | None = None,
+        perplexity: PerplexityModule | None = None,
         step_callback: Callable[[str, StepAgentOutput], None] | None = None,
     ):
         super().__init__(session=NotteSession(config=config.session, window=window))
         self.config: FalcoAgentConfig = config
         self.vault: BaseVault | None = vault
-        self.perplexity: PerplexityModule = PerplexityModule()
+        self.perplexity: PerplexityModule | None = perplexity
 
         self.tracer: LlmUsageDictTracer = LlmUsageDictTracer()
         self.llm: LLMEngine = LLMEngine(
@@ -213,19 +214,19 @@ class FalcoAgent(BaseAgent):
             )
 
         if len(self.trajectory.steps) > 0:
+            if self.perplexity is not None and self.perplexity.should_call(self.trajectory):  # pyright: ignore [reportArgumentType]
+                perp_message = self.perplexity.nudge(task, self.trajectory, self.conv.messages())  # pyright: ignore [reportArgumentType]
+                logger.info(f"Perplexity nudge: {perp_message}")
 
-            if (len(self.trajectory.steps) % 5) == 0:
-                perp_message = self.perplexity.nudge(task, self.conv.messages())
                 self.conv.add_user_message(
-                    f"Here's some information that might aid you in solving this task:{perp_message}"
+                    f"Here's some information that might aid you in solving this task: {perp_message}"
                 )
 
             self.conv.add_user_message(self.prompt.action_message())
-        else:
+
+        elif self.perplexity is not None:
             perp_message = self.perplexity.task_breakdown(task)
-            self.conv.add_user_message(
-                f"Here's some information that might aid you in solving this task:{perp_message}"
-            )
+            self.conv.add_user_message(f"Here's a breakdown that might aid you in solving this task: {perp_message}")
 
         return self.conv.messages()
 

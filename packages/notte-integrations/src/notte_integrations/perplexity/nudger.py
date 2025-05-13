@@ -1,9 +1,10 @@
 import json
 import os
-from typing import Any
+from typing import Any, Callable
 
 import requests
-from loguru import logger
+from notte_agent.common.trajectory_history import TrajectoryHistory
+from pydantic import BaseModel
 from requests.sessions import Session
 
 TASK_SYSTEM_PROMPT = """Break down web tasks into simple steps that a basic web ai agent can follow. For each task:
@@ -33,10 +34,13 @@ The next messages will come from the web ai agent: help them solve their task.
 """
 
 
-class PerplexityModule:
-    def __init__(self):
+class PerplexityHelper:
+    """Stateless, helper to make calls to perplexity"""
+
+    def __init__(self, model: str = "sonar-pro"):
         ENV_VAR = "PERPLEXITY_API_KEY"
         self.api_key: str | None = os.getenv(ENV_VAR)
+        self.model: str = model
         if self.api_key is None:
             raise ValueError(f"Set env variable {ENV_VAR}")
 
@@ -48,34 +52,77 @@ class PerplexityModule:
             {"role": "system", "content": TASK_SYSTEM_PROMPT},
             {"role": "user", "content": f"The task is: {task}"},
         ]
+        return self._ask_perplexity(messages)
 
-        data = {"model": "sonar", "messages": messages}
-        resp = self.session.post("https://api.perplexity.ai/chat/completions", json=data)
-
-        return resp.json()["choices"][0]["message"]["content"]
-
-    def nudge(self, task: str, messages: list[dict[Any, Any]]) -> None:
-        perp_messages = [
+    def nudge(self, task: str, agent_messages: list[dict[Any, Any]]) -> str:
+        user_messages = [
             f"The task of the agent is: {task}",
             "\nThe following messages are all messages from the web ai agent that you need to help:",
         ]
 
-        for message in messages:
+        for message in agent_messages:
             content = message.get("content")
             role = message.get("role")
             if role != "system" and isinstance(content, str):
-                perp_messages.append(json.dumps(message))
+                user_messages.append(json.dumps(message))
 
         perplexity_messages = [
             {"role": "system", "content": NUDGE_SYSTEM_PROMPT},
-            {"role": "user", "content": "\n".join(perp_messages)},
+            {"role": "user", "content": "\n".join(user_messages)},
         ]
+        return self._ask_perplexity(perplexity_messages)
 
-        logger.warning(f"input: {json.dumps(perp_messages, indent=2)}")
-        with open("perplexity_input.json", "w") as f:
-            json.dump(perp_messages, f)
-
-        data = {"model": "sonar", "messages": perplexity_messages}
+    def _ask_perplexity(self, messages: list[dict[Any, Any]]) -> str:
+        data = {"model": self.model, "messages": messages}
         resp = self.session.post("https://api.perplexity.ai/chat/completions", json=data)
-        logger.warning(f"out: {json.dumps(resp.json())}")
-        return resp.json()
+
+        return resp.json()["choices"][0]["message"]["content"]
+
+
+class PerplexityModule:
+    """
+    Call perplexity when agent struggles
+
+    Parameters
+    ----------
+    model : str, default="sonar-pro"
+        The name of the Perplexity model to use for processing.
+    only_on_failure : bool, default=True
+        When True, the module will only invoke the Perplexity API upon agent steps fail.
+    min_step_interval : int, default=5
+        The minimum number of steps agent has to make between API calls.
+    """
+
+    def __init__(
+        self,
+        model: str = "sonar-pro",
+        only_on_failure: bool = True,
+        min_step_interval: int = 5,
+        failure_fn: Callable[..., bool] | None = None,
+    ):
+        """ """
+        ENV_VAR = "PERPLEXITY_API_KEY"
+        self.api_key: str | None = os.getenv(ENV_VAR)
+        self.model: str = model
+        if self.api_key is None:
+            raise ValueError(f"Set env variable {ENV_VAR}")
+
+        self.perplexity: PerplexityHelper = PerplexityHelper(model=self.model)
+        self.last_step: int = 0
+        self.only_on_failure: bool = only_on_failure
+        self.min_step_interval: int = min_step_interval
+        self.failure_fn: Callable[..., bool] | None = failure_fn
+
+    def should_call(self, trajectory: TrajectoryHistory[BaseModel]):
+        last_step_failed = not all(res.success for res in trajectory.steps[-1].results)
+        current_step = len(trajectory.steps)
+        enough_steps_passed = (current_step - self.last_step) > self.min_step_interval
+        had_failure = self.failure_fn is not None and self.failure_fn()
+        return enough_steps_passed and (had_failure or last_step_failed or not self.only_on_failure)
+
+    def task_breakdown(self, task: str) -> str:
+        return self.perplexity.task_breakdown(task)
+
+    def nudge(self, task: str, trajectory: TrajectoryHistory[BaseModel], agent_messages: list[dict[Any, Any]]) -> str:
+        self.last_step = len(trajectory.steps)
+        return self.perplexity.nudge(task, agent_messages)
