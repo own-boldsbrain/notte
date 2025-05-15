@@ -57,7 +57,10 @@ class Agent:
         self.window: BrowserWindow | None = window
         self.session: NotteSession | None = session
 
-        self.persist_session: bool = False  # make the session continue after agent ran
+        # Session management behavior:
+        # - If a session is provided, we'll attach to it and preserve its state
+        # - If no session is provided, we'll create our own and clean it up after use
+        self._should_cleanup_session: bool = session is None
 
         if self.window is not None and self.session is not None:
             raise ValueError("Can't set both session and window")
@@ -67,10 +70,14 @@ class Agent:
         step_callback: Callable[[str, StepAgentOutput], None] | None = None,
     ) -> BaseAgent:
         if self.session is None:
+            # Create our own session that we'll manage
             self.session = NotteSession(config=self.config.session, window=self.window)
         else:
-            logger.warning("Session was already created before passing to agent, ignoring session parameters")
-            self.persist_session = True
+            # Attach to existing session - we won't manage its lifecycle
+            logger.warning(
+                "Attaching to existing session - session lifecycle will be preserved"
+            )
+            self._should_cleanup_session = False
 
         # need to start session before passing window
         await self.session.start()
@@ -94,7 +101,7 @@ class Agent:
 
             return await agent.run(task, url=url)
         finally:
-            if self.session is not None and not self.persist_session:
+            if self.session is not None and self._should_cleanup_session:
                 await self.session.stop()
 
     def run(self, task: str, url: str | None = None) -> AgentResponse:
