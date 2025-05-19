@@ -99,7 +99,8 @@ class URLAllowList(BaseModel):
             pattern: A glob pattern to match URLs (e.g., "*.example.com/*", "sub.example.com/*/search/?*")
         """
         # Convert to lowercase for case-insensitive matching
-        _ = self.domain_list(pattern).append(AccessElement(pattern=pattern.lower(), allow=True))
+        normalized = self._normalize_url(pattern)
+        _ = self.domain_list(pattern).append(AccessElement(pattern=normalized, allow=True))
         return self
 
     def block(self, pattern: str) -> Self:
@@ -110,7 +111,8 @@ class URLAllowList(BaseModel):
             pattern: A glob pattern to match URLs (e.g., "*.example.com/*", "sub.example.com/*/search/?*")
         """
         # Convert to lowercase for case-insensitive matching
-        _ = self.domain_list(pattern).append(AccessElement(pattern=pattern.lower(), allow=False))
+        normalized = self._normalize_url(pattern)
+        _ = self.domain_list(pattern).append(AccessElement(pattern=normalized, allow=False))
         return self
 
     def remove_from_allowlist(self, pattern: str) -> None:

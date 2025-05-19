@@ -99,7 +99,7 @@ class NotteSessionConfig(FrozenConfig):
     def model(self: Self, model: LlmModel) -> Self:
         return self._copy_and_validate(perception_model=model)
 
-    def set_allow_list(self: Self, allow_list: ActionAllowList) -> Self:
+    def set_action_allow_list(self: Self, allow_list: ActionAllowList) -> Self:
         return self._copy_and_validate(action=self.action.set_allow_list(allow_list))
 
     def set_url_allow_list(self, allow_list: URLAllowList) -> Self:

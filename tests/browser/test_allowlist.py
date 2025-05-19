@@ -13,7 +13,7 @@ async def get_actions_by_allowlist(allowlist: ActionAllowList | None) -> list[st
     config = NotteSessionConfig().disable_perception().disable_web_security()
 
     if allowlist is not None:
-        config = config.set_allow_list(allowlist)
+        config = config.set_action_allow_list(allowlist)
 
     async with notte.Session(config=config) as session:
         file_path = "tests/data/duckduckgo.html"
@@ -172,6 +172,10 @@ def test_url_allow_list():
     assert url_filter.is_allowed("https://www.google.com/search?q=dogs")
     assert not url_filter.is_allowed("https://images.google.com/search?q=dogs")
     assert url_filter.is_allowed("https://images.google.com/")
+
+    _ = url_filter.block("https://github.com/new")
+    assert not url_filter.is_allowed("https://github.com/new")
+    assert not url_filter.is_allowed("github.com/new")
 
 
 @pytest.mark.asyncio

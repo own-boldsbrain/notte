@@ -25,7 +25,8 @@ class SimpleActionSpaceConfig(FrozenConfig):
     rendering: DomNodeRenderingConfig = DomNodeRenderingConfig(type=DomNodeRenderingType.INTERACTION_ONLY)
 
     def set_allow_list(self: Self, allow_list: ActionAllowList) -> Self:
-        return self._copy_and_validate(rendering=self.rendering.set_allow_list(allow_list))
+        retval = self._copy_and_validate(rendering=self.rendering.set_allow_list(allow_list))
+        return retval
 
 
 class SimpleActionSpacePipe(BaseActionSpacePipe):
