@@ -1,5 +1,7 @@
 # Don't create repo agent
 
+![dont-create-repo](https://github.com/user-attachments/assets/113d3db3-6529-49af-ae73-680435e1d559)
+
 This example shows an Auth Vault Agent that authenticates to github, and then tries to create a repo.
 Since we use blocklists, it is not able to, and fails.
 Of course in general, you'd rather use blocklists to ensure success, and not failure :).
