@@ -133,7 +133,6 @@ class NotteConfig(TomlConfig):
     # [scraping]
     auto_scrape: bool
     use_llm: bool
-    rendering: str
     scraping_type: ScrapingType
 
     # [error]
