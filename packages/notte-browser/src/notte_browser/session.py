@@ -64,7 +64,7 @@ class NotteSession(AsyncResource):
         act_callback: Callable[[BaseAction, Observation], None] | None = None,
         **data: Unpack[SessionStartRequestDict],
     ) -> None:
-        llmserve = LLMService(base_model=config.perception_model)
+        llmserve = LLMService(base_model=config.perception_model or config.reasoning_model)
         self._request: SessionStartRequest = SessionStartRequest.model_validate(data)
         self._headless: bool = headless
         self._window: BrowserWindow | None = window
