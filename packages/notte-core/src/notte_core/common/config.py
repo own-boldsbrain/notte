@@ -1,7 +1,8 @@
+import os
 import sys
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Literal, Self
+from typing import Any, Literal, Self, TypedDict
 
 import toml
 from loguru import logger
@@ -41,14 +42,20 @@ class FrozenConfig(BaseModel):
         return self._copy_and_validate(**updated_fields, verbose=value)
 
 
+class ParameterDict(TypedDict):
+    pass
+
+
 class TomlConfig(BaseModel):
     @classmethod
-    def from_toml(cls, path: str | Path | None = None) -> Self:
+    def from_toml(cls, data: ParameterDict | None = None) -> Self:
         """Load settings from a TOML file."""
 
         # load default config
         with DEFAULT_CONFIG_PATH.open("r") as f:
             toml_data = toml.load(f)
+
+        path = os.getenv("NOTTE_CONFIG_PATH")
 
         if path is not None:
             path = Path(path)
@@ -60,7 +67,7 @@ class TomlConfig(BaseModel):
                 external_toml_data = toml.load(f)
 
             # merge configs
-            toml_data = {**toml_data, **external_toml_data}
+            toml_data = {**toml_data, **external_toml_data, **(data or {})}
 
         return cls.model_validate(toml_data)
 
