@@ -136,7 +136,6 @@ class FalcoAgent(BaseAgent):
             autosize=True,
             model=config.reasoning_model,
         )
-        self.history_type: HistoryType = config.history_type
         self.trajectory: FalcoTrajectoryHistory = FalcoTrajectoryHistory(max_error_length=config.max_error_length)
 
         async def execute_action(action: BaseAction) -> Observation:
@@ -199,7 +198,7 @@ class FalcoAgent(BaseAgent):
         if config.verbose:
             logger.info(f"🔍 Trajectory history:\n{traj_msg}")
         # add trajectory to the conversation
-        match self.history_type:
+        match config.history_type:
             case HistoryType.COMPRESSED:
                 self.conv.add_user_message(content=traj_msg)
             case _:
@@ -216,7 +215,7 @@ class FalcoAgent(BaseAgent):
                             continue
                         # add observation data to the conversation
                         obs = result.get()
-                        match (self.history_type, obs.has_data()):
+                        match (config.history_type, obs.has_data()):
                             case (HistoryType.FULL_CONVERSATION, _):
                                 self.conv.add_user_message(
                                     content=self.perception.perceive(obs),
@@ -232,7 +231,7 @@ class FalcoAgent(BaseAgent):
                                 pass
 
         last_valid_obs = self.trajectory.last_obs()
-        if last_valid_obs is not None and self.history_type is not HistoryType.FULL_CONVERSATION:
+        if last_valid_obs is not None and config.history_type is not HistoryType.FULL_CONVERSATION:
             self.conv.add_user_message(
                 content=self.perception.perceive(last_valid_obs),
                 image=(last_valid_obs.screenshot if config.use_vision else None),
