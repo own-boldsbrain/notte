@@ -32,10 +32,12 @@ from typing_extensions import TypedDict, override
 DEFAULT_OPERATION_SESSION_TIMEOUT_IN_MINUTES = 3
 DEFAULT_GLOBAL_SESSION_TIMEOUT_IN_MINUTES = 30
 DEFAULT_MAX_NB_ACTIONS = 100
-DEFAULT_MAX_NB_STEPS = config.max_steps
 DEFAULT_LIMIT_LIST_ITEMS = 10
+DEFAULT_MAX_NB_STEPS = config.max_steps
 DEFAULT_VIEWPORT_WIDTH = config.viewport_width
 DEFAULT_VIEWPORT_HEIGHT = config.viewport_height
+DEFAULT_BROWSER_TYPE = config.browser_type
+DEFAULT_CHROME_ARGS = config.chrome_args
 
 
 class ExecutionResponse(BaseModel):
@@ -233,10 +235,12 @@ class SessionStartRequest(BaseModel):
     ] = False
     browser_type: Annotated[
         BrowserType, Field(description="The browser type to use. Can be chromium, chrome or firefox.")
-    ] = BrowserType.CHROMIUM
-    chrome_args: Annotated[list[str] | None, Field(description="Override the chrome instance arguments")] = None
-    viewport_width: Annotated[int | None, Field(description="The width of the viewport")] = None
-    viewport_height: Annotated[int | None, Field(description="The height of the viewport")] = None
+    ] = DEFAULT_BROWSER_TYPE
+    chrome_args: Annotated[list[str] | None, Field(description="Override the chrome instance arguments")] = Field(
+        default_factory=lambda: DEFAULT_CHROME_ARGS
+    )
+    viewport_width: Annotated[int | None, Field(description="The width of the viewport")] = DEFAULT_VIEWPORT_WIDTH
+    viewport_height: Annotated[int | None, Field(description="The height of the viewport")] = DEFAULT_VIEWPORT_HEIGHT
 
     def __post_init__(self):
         """
