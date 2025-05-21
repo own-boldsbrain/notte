@@ -47,6 +47,9 @@ class BrowserWindowOptions(FrozenConfig):
     debug_port: int | None
     custom_devtools_frontend: str | None
 
+    def set_cdp_url(self, cdp_url: str) -> Self:
+        return self._copy_and_validate(cdp_url=cdp_url)
+
     def get_chrome_args(self) -> list[str]:
         chrome_args = self.chrome_args or []
         if self.chrome_args is None:
