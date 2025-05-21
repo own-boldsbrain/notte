@@ -3,19 +3,20 @@ from collections.abc import Callable
 from loguru import logger
 from notte_browser.dom.locate import locate_element
 from notte_browser.resolution import NodeResolutionPipe
-from notte_browser.session import NotteSession, NotteSessionConfig
+from notte_browser.session import NotteSession
 from notte_browser.vault import VaultSecretsScreenshotMask
 from notte_browser.window import BrowserWindow
 from notte_core.browser.observation import Observation
+from notte_core.common.config import NotteConfig
 from notte_core.common.tracer import LlmUsageDictTracer
 from notte_core.controller.actions import CompletionAction, InteractionAction
 from notte_core.credentials.base import BaseVault
 from notte_core.llms.engine import LLMEngine
 from patchright.async_api import Locator
+from pydantic import model_validator
 from typing_extensions import override
 
 from notte_agent.common.base import BaseAgent
-from notte_agent.common.config import AgentConfig
 from notte_agent.common.conversation import Conversation
 from notte_agent.common.parser import NotteStepAgentOutput
 from notte_agent.common.types import AgentResponse
@@ -25,11 +26,22 @@ from notte_agent.gufo.perception import GufoPerception
 from notte_agent.gufo.prompt import GufoPrompt
 
 
-class GufoAgentConfig(AgentConfig):
-    @classmethod
-    @override
-    def default_session(cls) -> NotteSessionConfig:
-        return NotteSessionConfig().use_llm()
+class GufoConfig(NotteConfig):
+    perception_enabled: bool = True
+    auto_scrape: bool = True
+
+    @model_validator(mode="before")
+    def check_perception(self):
+        if not self.perception_enabled:
+            raise ValueError("Perception should be enabled for gufo. Don't set this argument to `False`.")
+
+    @model_validator(mode="before")
+    def check_auto_scrape(self):
+        if not self.auto_scrape:
+            raise ValueError("Auto scrape should be enabled for gufo. Don't set this argument to `False`.")
+
+
+config = GufoConfig.from_toml()
 
 
 class GufoAgent(BaseAgent):
@@ -57,25 +69,17 @@ class GufoAgent(BaseAgent):
 
     def __init__(
         self,
-        config: AgentConfig,
         window: BrowserWindow,
-        session: NotteSession | None = None,
         vault: BaseVault | None = None,
         step_callback: Callable[[str, NotteStepAgentOutput], None] | None = None,
     ) -> None:
-        session = NotteSession(config=config.session, window=window)
+        session = NotteSession(window=window)
         super().__init__(session=session)
 
         self.step_callback: Callable[[str, NotteStepAgentOutput], None] | None = step_callback
         self.tracer: LlmUsageDictTracer = LlmUsageDictTracer()
-        self.config: AgentConfig = config
         self.vault: BaseVault | None = vault
-        self.llm: LLMEngine = LLMEngine(
-            model=config.reasoning_model,
-            tracer=self.tracer,
-            structured_output_retries=config.session.structured_output_retries,
-            verbose=self.config.verbose,
-        )
+        self.llm: LLMEngine = LLMEngine(model=config.reasoning_model, tracer=self.tracer)
         # Users should implement their own parser to customize how observations
         # and actions are formatted for their specific LLM and use case
         self.parser: GufoParser = GufoParser()
@@ -137,7 +141,7 @@ class GufoAgent(BaseAgent):
                     self.session.snapshot,
                 )
         # Execute the action
-        obs: Observation = await self.session.act(action)
+        obs: Observation = await self.session.act(action, enable_perception=True)
         text_obs = self.perception.perceive(obs)
         self.conv.add_user_message(
             content=f"""
@@ -145,7 +149,7 @@ class GufoAgent(BaseAgent):
 {self.prompt.select_action_rules()}
 {self.prompt.completion_rules()}
 """,
-            image=obs.screenshot if self.config.include_screenshot else None,
+            image=obs.screenshot if config.use_vision else None,
         )
         logger.info(f"🌌 Action successfully executed:\n{text_obs}")
         return None
@@ -170,7 +174,7 @@ class GufoAgent(BaseAgent):
 
         if self.vault is not None:
             self.session.window.screenshot_mask = VaultSecretsScreenshotMask(vault=self.vault)
-        for i in range(self.config.session.max_steps):
+        for i in range(config.max_steps):
             logger.info(f"> step {i}: looping in")
             output = await self.step(task=task)
             if output is not None:
@@ -178,6 +182,6 @@ class GufoAgent(BaseAgent):
                 logger.info(f"{status} with answer: {output.answer}")
                 return self.output(output.answer, output.success)
         # If the task is not done, raise an error
-        error_msg = f"Failed to solve task in {self.config.session.max_steps} steps"
+        error_msg = f"Failed to solve task in {config.max_steps} steps"
         logger.info(f"🚨 {error_msg}")
         return self.output(error_msg, False)

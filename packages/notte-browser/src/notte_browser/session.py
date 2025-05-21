@@ -219,7 +219,7 @@ class NotteSession(AsyncResource):
     async def observe(
         self,
         url: str | None = None,
-        enable_perception: bool = True,
+        enable_perception: bool = config.enable_perception,
         **pagination: Unpack[PaginationParamsDict],
     ) -> Observation:
         _ = await self.goto(url)
@@ -256,6 +256,7 @@ class NotteSession(AsyncResource):
     async def act(
         self,
         action: BaseAction,
+        enable_perception: bool = config.enable_perception,
     ) -> Observation:
         if config.verbose:
             logger.info(f"🌌 starting execution of action {action.id}...")
@@ -269,7 +270,7 @@ class NotteSession(AsyncResource):
             logger.info(f"🌌 action {action.id} executed in browser. Observing page...")
         _ = self._preobserve(snapshot, action=action)
         return await self._observe(
-            enable_perception=False,
+            enable_perception=enable_perception,
             pagination=PaginationParams(),
             retry=self.observe_max_retry_after_snapshot_update,
         )
@@ -281,7 +282,7 @@ class NotteSession(AsyncResource):
         action_id: str,
         params: dict[str, str] | str | None = None,
         enter: bool | None = None,
-        enable_perception: bool = True,
+        enable_perception: bool = config.enable_perception,
         **pagination: Unpack[PaginationParamsDict],
     ) -> Observation:
         _ = await self.execute(action_id, params, enter=enter)

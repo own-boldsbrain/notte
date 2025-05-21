@@ -5,7 +5,7 @@ from typing import Any, Literal, Self
 
 import toml
 from loguru import logger
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel
 from typing_extensions import override
 
 DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config.toml"
@@ -77,6 +77,17 @@ class ScrapingType(StrEnum):
     LLM_EXTRACT = "llm_extract"
 
 
+class RaiseCondition(StrEnum):
+    """How to raise an error when the agent fails to complete a step.
+
+    Either immediately upon failure, after retry, or never.
+    """
+
+    IMMEDIATELY = "immediately"
+    RETRY = "retry"
+    NEVER = "never"
+
+
 class NotteConfig(TomlConfig):
     class Config:
         # frozen config
@@ -109,6 +120,7 @@ class NotteConfig(TomlConfig):
     chrome_args: list[str] | None = None
 
     # [perception]
+    enable_perception: bool
     perception_model: str | None = None  # if none use reasoning_model
 
     # [scraping]
@@ -119,7 +131,7 @@ class NotteConfig(TomlConfig):
 
     # [error]
     max_error_length: int
-    raise_condition: str
+    raise_condition: RaiseCondition
     max_consecutive_failures: int
 
     # [proxy]
@@ -159,36 +171,6 @@ class NotteConfig(TomlConfig):
 #### -> This is very good because we can enforce headless=True on the CICD and docker images with this without breaking the config for the users
 # 4. If some agents required a parameter to be set to a certain value, we can add a model_validator to the config class that will check that the parameter is set to the correct value.
 # 5. For computed fields such as `max_history_token` if the user does not set it, we use our computed value otherwise we default to the user value.
-
-
-class FalcoConfig(TomlConfig):
-    perception_enabled: bool = False
-    auto_scrape: bool = False
-
-    @model_validator(mode="before")
-    def check_perception(self):
-        if self.perception_enabled:
-            raise ValueError("Perception should be disabled for falco. Don't set this argument to `True`.")
-
-    @model_validator(mode="before")
-    def check_auto_scrape(self):
-        if self.auto_scrape:
-            raise ValueError("Auto scrape is not allowed for falco. Don't set this argument to another value.")
-
-
-class GufoConfig(TomlConfig):
-    perception_enabled: bool = True
-    auto_scrape: bool = True
-
-    @model_validator(mode="before")
-    def check_perception(self):
-        if not self.perception_enabled:
-            raise ValueError("Perception should be enabled for gufo. Don't set this argument to `False`.")
-
-    @model_validator(mode="before")
-    def check_auto_scrape(self):
-        if not self.auto_scrape:
-            raise ValueError("Auto scrape should be enabled for gufo. Don't set this argument to `False`.")
 
 
 config = NotteConfig.from_toml()
