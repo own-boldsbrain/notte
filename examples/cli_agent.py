@@ -1,17 +1,15 @@
-from typing import Unpack
-
 import typer
 from dotenv import load_dotenv
 from notte_agent import Agent
 from notte_agent.common.types import AgentResponse
-from notte_sdk.types import AgentCreateRequestDict
+from notte_core.llms.engine import LlmModel
 
 # Load environment variables
 _ = load_dotenv()
 
 
-def main(headless: bool, task: str, **data: Unpack[AgentCreateRequestDict]) -> AgentResponse:
-    agent = Agent(headless=headless, **data)
+def main(headless: bool, task: str, reasoning_model: str) -> AgentResponse:
+    agent = Agent(headless=headless, reasoning_model=LlmModel(reasoning_model))
     return agent.run(task)
 
 
