@@ -1,15 +1,18 @@
 import datetime as dt
 import json
+import os
 from base64 import b64decode, b64encode
 from collections.abc import Sequence
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any, Generic, Literal, Required, TypeVar
 
+from loguru import logger
 from notte_core.actions.base import Action, BrowserAction
 from notte_core.actions.space import ActionSpace
 from notte_core.browser.observation import Observation, TrajectoryProgress
 from notte_core.browser.snapshot import SnapshotMetadata, TabsData
+from notte_core.common.config import BrowserType, config
 from notte_core.controller.actions import BaseAction
 from notte_core.controller.space import BaseActionSpace, SpaceCategory
 from notte_core.credentials.base import Credential, CredentialsDict, CreditCardDict, Vault
@@ -29,10 +32,10 @@ from typing_extensions import TypedDict, override
 DEFAULT_OPERATION_SESSION_TIMEOUT_IN_MINUTES = 3
 DEFAULT_GLOBAL_SESSION_TIMEOUT_IN_MINUTES = 30
 DEFAULT_MAX_NB_ACTIONS = 100
-DEFAULT_MAX_NB_STEPS = 20
+DEFAULT_MAX_NB_STEPS = config.max_steps
 DEFAULT_LIMIT_LIST_ITEMS = 10
-DEFAULT_VIEWPORT_WIDTH = 1280
-DEFAULT_VIEWPORT_HEIGHT = 1020  # Default in playright is 720
+DEFAULT_VIEWPORT_WIDTH = config.viewport_width
+DEFAULT_VIEWPORT_HEIGHT = config.viewport_height
 
 
 class ExecutionResponse(BaseModel):
@@ -45,12 +48,6 @@ class PlaywrightProxySettings(TypedDict, total=False):
     bypass: str | None
     username: str | None
     password: str | None
-
-
-class BrowserType(StrEnum):
-    CHROMIUM = "chromium"
-    CHROME = "chrome"
-    FIREFOX = "firefox"
 
 
 class ProxyGeolocation(BaseModel):
@@ -255,6 +252,40 @@ class SessionStartRequest(BaseModel):
                     f"{self.timeout_minutes} > {DEFAULT_GLOBAL_SESSION_TIMEOUT_IN_MINUTES}"
                 )
             )
+
+    def load_proxy_settings(self) -> ProxySettings | None:
+        if isinstance(self.proxies, bool) and not self.proxies:
+            return None
+
+        server = os.getenv("PROXY_URL")
+        username = os.getenv("PROXY_USERNAME")
+        password = os.getenv("PROXY_PASSWORD")
+        default_notte_proxy: ProxySettings | None = None
+        if server is not None and username is not None and password is not None:
+            logger.warning("[Notte Proxy] Using Notte proxy from environment variables")
+            default_notte_proxy = ProxySettings(
+                type=ProxyType.NOTTE,
+                server=server,
+                username=username,
+                password=password,
+                bypass=None,
+            )
+        elif config.proxy_host is not None and config.proxy_username is not None and config.proxy_password is not None:
+            logger.warning("[Notte Proxy] Using Notte proxy from config")
+            default_notte_proxy = ProxySettings(
+                type=ProxyType.EXTERNAL,
+                server=config.proxy_host,
+                username=config.proxy_username,
+                password=config.proxy_password,
+                bypass=None,
+            )
+        if isinstance(self.proxies, list) and len(self.proxies) > 0:
+            logger.warning("[Notte Proxy] Only the first proxy from the list will be used")
+            base_proxy = self.proxies[0]
+            if base_proxy.type == ProxyType.NOTTE:
+                return default_notte_proxy
+            return base_proxy
+        return None
 
 
 class SessionRequest(BaseModel):

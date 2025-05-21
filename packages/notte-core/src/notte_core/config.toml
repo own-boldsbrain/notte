@@ -1,43 +1,44 @@
-[log]
+# [log]
 level = "DEBUG"
 verbose = false
 
 # [agent]
 reasoning_model = "gpt-4o-mini"
 use_vision = false
-# max_history_tokens = ...
+# max_history_tokens = 32000
 max_actions_per_step = 1
 history_type = "short_observations_with_short_data"
-max_steps = 100
+max_steps = 20
 human_in_the_loop = false
 
-#[error]
+# [error]
 max_error_length = 500
 raise_condition = "retry"
 max_consecutive_failures = 3
 
 # [browser]
 headless = false
-# user_agent = null
-# viewport_width = null
-# viewport_height = null
 browser_type = "chromium"
-# chrome_args = null
 web_security = false
+viewport_width = 1920
+viewport_height = 1080
 # cdp_url = null
-cdp_debug = false
-# custom_devtools_frontend = null
+# debug_port = 9222
+# user_agent = null
+# custom_devtools_frontend = "localhost:9000"
+# chrome_args = []
 
 # [proxy]
 # proxy_host = null
 # proxy_port = null
 # proxy_username = null
-# proxy_password = null
+# proxy_password = null # pragma: allowlist secret
 
 # [llm]
-structured_output_retries = 2
+nb_retries_structured_output = 2
 nb_retries = 2
 clip_tokens=5000
+use_llamux = false
 
 # [scraping]
 scraping_model = "gpt-4o-mini"

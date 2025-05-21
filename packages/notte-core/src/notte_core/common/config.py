@@ -1,8 +1,12 @@
+import sys
+from enum import StrEnum
 from pathlib import Path
-from typing import Any, Self
+from typing import Any, Literal, Self
 
 import toml
+from loguru import logger
 from pydantic import BaseModel, model_validator
+from typing_extensions import override
 
 DEFAULT_CONFIG_PATH = Path(__file__).parent.parent / "config.toml"
 
@@ -61,36 +65,57 @@ class TomlConfig(BaseModel):
         return cls.model_validate(toml_data)
 
 
-class NotteConfig(BaseModel):
+class BrowserType(StrEnum):
+    CHROMIUM = "chromium"
+    CHROME = "chrome"
+    FIREFOX = "firefox"
+
+
+class ScrapingType(StrEnum):
+    MARKDOWNIFY = "markdownify"
+    MAIN_CONTENT = "main_content"
+    LLM_EXTRACT = "llm_extract"
+
+
+class NotteConfig(TomlConfig):
+    class Config:
+        # frozen config
+        frozen: bool = True
+        extra: str = "forbid"
+
     # [log]
     level: str
     verbose: bool
+    logging_mode: Literal["user", "dev", "agent"]
 
     # [llm]
     reasoning_model: str
-    max_history_tokens: int | None
-    structured_output_retries: int
-    nb_retries: str
+    max_history_tokens: int | None = None
+    nb_retries_structured_output: int
+    nb_retries: int
     clip_tokens: int
+    use_llamux: bool
 
     # [browser]
     headless: bool
-    user_agent: str | None
-    viewport_width: int | None
-    viewport_height: int | None
-    browser_type: str
+    user_agent: str | None = None
+    viewport_width: int | None = None
+    viewport_height: int | None = None
+    cdp_url: str | None = None
+    browser_type: BrowserType
     web_security: bool
-    cdp_debug: bool
-    custom_devtools_frontend: str | None
+    custom_devtools_frontend: str | None = None
+    debug_port: int | None = None
+    chrome_args: list[str] | None = None
 
     # [perception]
-    perception_enabled: bool
-    perception_model: str | None  # if none use reasoning_model
+    perception_model: str | None = None  # if none use reasoning_model
 
     # [scraping]
     auto_scrape: bool
     use_llm: bool
     rendering: str
+    scraping_type: ScrapingType
 
     # [error]
     max_error_length: int
@@ -98,17 +123,33 @@ class NotteConfig(BaseModel):
     max_consecutive_failures: int
 
     # [proxy]
-    proxy_host: str | None
-    proxy_port: int | None
-    proxy_username: str | None
-    proxy_password: str | None
+    proxy_host: str | None = None
+    proxy_port: int | None = None
+    proxy_username: str | None = None
+    proxy_password: str | None = None
 
     # [agent]
     max_steps: int
     max_actions_per_step: int
-    history_type: str
     human_in_the_loop: bool
     use_vision: bool
+
+    @override
+    def model_post_init(self, context: Any, /) -> None:
+        match self.logging_mode:
+            case "dev":
+                format = "<green>{time:YYYY-MM-DD HH:mm:ss.SSS}</green> | <level>{level: <8}</level> | <cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> - <level>{message}</level>"
+                logger.configure(handlers=[dict(sink=sys.stderr, level="DEBUG", format=format)])  # type: ignore
+                # self.set_deep_verbose(True)
+            case "user":
+                pass
+                # verbose=True,
+                # window=self.window.set_verbose(),
+                # action=self.action.set_verbose(),
+            case "agent":
+                format = "<level>{level: <8}</level> - <level>{message}</level>"
+                logger.configure(handlers=[dict(sink=sys.stderr, level="INFO", format=format)])  # type: ignore
+                # self.set_deep_verbose(False)
 
 
 # DESIGN CHOICES after discussion with the leo
@@ -126,10 +167,28 @@ class FalcoConfig(TomlConfig):
 
     @model_validator(mode="before")
     def check_perception(self):
-        if not self.perception_enabled:
-            raise ValueError("Perception is required for falco. Don't set this argument to another value.")
+        if self.perception_enabled:
+            raise ValueError("Perception should be disabled for falco. Don't set this argument to `True`.")
 
     @model_validator(mode="before")
     def check_auto_scrape(self):
         if self.auto_scrape:
             raise ValueError("Auto scrape is not allowed for falco. Don't set this argument to another value.")
+
+
+class GufoConfig(TomlConfig):
+    perception_enabled: bool = True
+    auto_scrape: bool = True
+
+    @model_validator(mode="before")
+    def check_perception(self):
+        if not self.perception_enabled:
+            raise ValueError("Perception should be enabled for gufo. Don't set this argument to `False`.")
+
+    @model_validator(mode="before")
+    def check_auto_scrape(self):
+        if not self.auto_scrape:
+            raise ValueError("Auto scrape should be enabled for gufo. Don't set this argument to `False`.")
+
+
+config = NotteConfig.from_toml()
