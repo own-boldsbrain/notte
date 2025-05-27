@@ -85,7 +85,7 @@ class SessionsClient(BaseClient):
         self.viewer_type: SessionViewerType = viewer_type
 
     @staticmethod
-    def session_start_endpoint() -> NotteEndpoint[SessionResponse]:
+    def _session_start_endpoint() -> NotteEndpoint[SessionResponse]:
         """
         Returns a NotteEndpoint configured for starting a session.
 
@@ -94,7 +94,7 @@ class SessionsClient(BaseClient):
         return NotteEndpoint(path=SessionsClient.SESSION_START, response=SessionResponse, method="POST")
 
     @staticmethod
-    def session_stop_endpoint(session_id: str | None = None) -> NotteEndpoint[SessionResponse]:
+    def _session_stop_endpoint(session_id: str | None = None) -> NotteEndpoint[SessionResponse]:
         """
         Constructs a DELETE endpoint for closing a session.
 
@@ -113,7 +113,7 @@ class SessionsClient(BaseClient):
         return NotteEndpoint(path=path, response=SessionResponse, method="DELETE")
 
     @staticmethod
-    def session_status_endpoint(session_id: str | None = None) -> NotteEndpoint[SessionResponse]:
+    def _session_status_endpoint(session_id: str | None = None) -> NotteEndpoint[SessionResponse]:
         """
         Returns a NotteEndpoint for retrieving the status of a session.
 
@@ -126,7 +126,7 @@ class SessionsClient(BaseClient):
         return NotteEndpoint(path=path, response=SessionResponse, method="GET")
 
     @staticmethod
-    def session_list_endpoint(params: SessionListRequest | None = None) -> NotteEndpoint[SessionResponse]:
+    def _session_list_endpoint(params: SessionListRequest | None = None) -> NotteEndpoint[SessionResponse]:
         """
         Constructs a NotteEndpoint for listing sessions.
 
@@ -145,7 +145,7 @@ class SessionsClient(BaseClient):
         )
 
     @staticmethod
-    def session_debug_endpoint(session_id: str | None = None) -> NotteEndpoint[SessionDebugResponse]:
+    def _session_debug_endpoint(session_id: str | None = None) -> NotteEndpoint[SessionDebugResponse]:
         """
         Creates a NotteEndpoint for retrieving session debug information.
 
@@ -158,7 +158,7 @@ class SessionsClient(BaseClient):
         return NotteEndpoint(path=path, response=SessionDebugResponse, method="GET")
 
     @staticmethod
-    def session_debug_tab_endpoint(
+    def _session_debug_tab_endpoint(
         session_id: str | None = None, params: TabSessionDebugRequest | None = None
     ) -> NotteEndpoint[TabSessionDebugResponse]:
         """
@@ -181,7 +181,7 @@ class SessionsClient(BaseClient):
         )
 
     @staticmethod
-    def session_debug_replay_endpoint(session_id: str | None = None) -> NotteEndpoint[BaseModel]:
+    def _session_debug_replay_endpoint(session_id: str | None = None) -> NotteEndpoint[BaseModel]:
         """
         Returns an endpoint for retrieving the replay for a session.
         """
@@ -191,7 +191,7 @@ class SessionsClient(BaseClient):
         return NotteEndpoint(path=path, response=BaseModel, method="GET")
 
     @staticmethod
-    def session_set_cookies_endpoint(session_id: str | None = None) -> NotteEndpoint[SetCookiesResponse]:
+    def _session_set_cookies_endpoint(session_id: str | None = None) -> NotteEndpoint[SetCookiesResponse]:
         """
         Returns a NotteEndpoint for uploading cookies to a session.
         """
@@ -201,7 +201,7 @@ class SessionsClient(BaseClient):
         return NotteEndpoint(path=path, response=SetCookiesResponse, method="POST")
 
     @staticmethod
-    def session_get_cookies_endpoint(session_id: str | None = None) -> NotteEndpoint[GetCookiesResponse]:
+    def _session_get_cookies_endpoint(session_id: str | None = None) -> NotteEndpoint[GetCookiesResponse]:
         """
         Returns a NotteEndpoint for retrieving cookies from a session.
         """
@@ -218,18 +218,18 @@ class SessionsClient(BaseClient):
         Aggregates endpoints from SessionsClient for starting, closing, status checking, listing,
         and debugging sessions (including tab-specific debugging)."""
         return [
-            SessionsClient.session_start_endpoint(),
-            SessionsClient.session_stop_endpoint(),
-            SessionsClient.session_status_endpoint(),
-            SessionsClient.session_list_endpoint(),
-            SessionsClient.session_debug_endpoint(),
-            SessionsClient.session_debug_tab_endpoint(),
-            SessionsClient.session_debug_replay_endpoint(),
-            SessionsClient.session_set_cookies_endpoint(),
-            SessionsClient.session_get_cookies_endpoint(),
+            SessionsClient._session_start_endpoint(),
+            SessionsClient._session_stop_endpoint(),
+            SessionsClient._session_status_endpoint(),
+            SessionsClient._session_list_endpoint(),
+            SessionsClient._session_debug_endpoint(),
+            SessionsClient._session_debug_tab_endpoint(),
+            SessionsClient._session_debug_replay_endpoint(),
+            SessionsClient._session_set_cookies_endpoint(),
+            SessionsClient._session_get_cookies_endpoint(),
         ]
 
-    def start(self, **data: Unpack[SessionStartRequestDict]) -> SessionResponse:
+    def _start(self, **data: Unpack[SessionStartRequestDict]) -> SessionResponse:
         """
         Starts a new session using the provided keyword arguments.
 
@@ -243,10 +243,10 @@ class SessionsClient(BaseClient):
             SessionResponse: The response received from the session start endpoint.
         """
         request = SessionStartRequest.model_validate(data)
-        response = self.request(SessionsClient.session_start_endpoint().with_request(request))
+        response = self.request(SessionsClient._session_start_endpoint().with_request(request))
         return response
 
-    def stop(self, session_id: str) -> SessionResponse:
+    def _stop(self, session_id: str) -> SessionResponse:
         """
         Stops an active session.
 
@@ -262,11 +262,11 @@ class SessionsClient(BaseClient):
         Returns:
             SessionResponse: The validated response from the session stop request.
         """
-        endpoint = SessionsClient.session_stop_endpoint(session_id=session_id)
+        endpoint = SessionsClient._session_stop_endpoint(session_id=session_id)
         response = self.request(endpoint)
         return response
 
-    def status(self, session_id: str) -> SessionResponse:
+    def _status(self, session_id: str) -> SessionResponse:
         """
         Retrieves the current status of a session.
 
@@ -274,7 +274,7 @@ class SessionsClient(BaseClient):
         the status endpoint, validates the response against the SessionResponse model, updates the stored
         session response, and returns the validated status.
         """
-        endpoint = SessionsClient.session_status_endpoint(session_id=session_id)
+        endpoint = SessionsClient._session_status_endpoint(session_id=session_id)
         response = self.request(endpoint)
         return response
 
@@ -328,10 +328,10 @@ class SessionsClient(BaseClient):
         sessions. Returns a sequence of session response objects.
         """
         params = SessionListRequest.model_validate(data)
-        endpoint = SessionsClient.session_list_endpoint(params=params)
+        endpoint = SessionsClient._session_list_endpoint(params=params)
         return self.request_list(endpoint)
 
-    def debug_info(self, session_id: str) -> SessionDebugResponse:
+    def _debug_info(self, session_id: str) -> SessionDebugResponse:
         """
         Retrieves debug information for a session.
 
@@ -344,10 +344,10 @@ class SessionsClient(BaseClient):
         Returns:
             SessionDebugResponse: The debug information response for the session.
         """
-        endpoint = SessionsClient.session_debug_endpoint(session_id=session_id)
+        endpoint = SessionsClient._session_debug_endpoint(session_id=session_id)
         return self.request(endpoint)
 
-    def debug_tab_info(self, session_id: str, tab_idx: int | None = None) -> TabSessionDebugResponse:
+    def _debug_tab_info(self, session_id: str, tab_idx: int | None = None) -> TabSessionDebugResponse:  # pyright: ignore [reportUnusedFunction]
         """
         Retrieves debug information for a specific tab in the current session.
 
@@ -362,10 +362,10 @@ class SessionsClient(BaseClient):
             TabSessionDebugResponse: The response containing debug information for the specified tab.
         """
         params = TabSessionDebugRequest(tab_idx=tab_idx) if tab_idx is not None else None
-        endpoint = SessionsClient.session_debug_tab_endpoint(session_id=session_id, params=params)
+        endpoint = SessionsClient._session_debug_tab_endpoint(session_id=session_id, params=params)
         return self.request(endpoint)
 
-    def replay(self, session_id: str) -> WebpReplay:
+    def _replay(self, session_id: str) -> WebpReplay:
         """
         Downloads the replay for the specified session in webp format.
 
@@ -375,7 +375,7 @@ class SessionsClient(BaseClient):
         Returns:
             WebpReplay: The replay file in webp format.
         """
-        endpoint = SessionsClient.session_debug_replay_endpoint(session_id=session_id)
+        endpoint = SessionsClient._session_debug_replay_endpoint(session_id=session_id)
         file_bytes = self._request_file(endpoint, file_type="webp")
         return WebpReplay(file_bytes)
 
@@ -410,7 +410,7 @@ class SessionsClient(BaseClient):
         Returns:
             None
         """
-        debug_info = self.debug_info(session_id=session_id)
+        debug_info = self._debug_info(session_id=session_id)
         # open browser tab with debug_url
         _ = open_browser(debug_info.debug_url)
 
@@ -471,7 +471,7 @@ class RemoteSession(SyncResource):
         Raises:
             ValueError: If the session request is invalid.
         """
-        self.response = self.client.start(**self.request.model_dump())
+        self.response = self.client._start(**self.request.model_dump())  # pyright: ignore [reportPrivateUsage]
         logger.info(f"[Session] {self.session_id} started with request: {self.request.model_dump(exclude_none=True)}")
 
     @override
@@ -488,7 +488,7 @@ class RemoteSession(SyncResource):
             RuntimeError: If the session fails to close properly.
         """
         logger.info(f"[Session] {self.session_id} stopped")
-        self.response = self.client.stop(session_id=self.session_id)
+        self.response = self.client._stop(session_id=self.session_id)  # pyright: ignore [reportPrivateUsage]
         if self.response.status != "closed":
             raise RuntimeError(f"[Session] {self.session_id} failed to stop")
 
@@ -517,7 +517,7 @@ class RemoteSession(SyncResource):
         Raises:
             ValueError: If the session hasn't been started yet (no session_id available).
         """
-        return self.client.replay(session_id=self.session_id)
+        return self.client._replay(session_id=self.session_id)  # pyright: ignore [reportPrivateUsage]
 
     def viewer_browser(self) -> None:
         """
@@ -558,7 +558,7 @@ class RemoteSession(SyncResource):
         Raises:
             ValueError: If the session hasn't been started yet (no session_id available).
         """
-        return self.client.status(session_id=self.session_id)
+        return self.client._status(session_id=self.session_id)  # pyright: ignore [reportPrivateUsage]
 
     def set_cookies(
         self,
@@ -576,15 +576,22 @@ class RemoteSession(SyncResource):
 
         Returns:
             SetCookiesResponse: The response from the upload cookies request.
+
+        Raises:
+            ValueError: If both cookies and cookie_file are provided, or if neither is provided.
+            ValueError: If the session hasn't been started yet (no session_id available).
         """
-        return self.client.set_cookies(session_id=self.session_id, cookies=cookies, cookie_file=cookie_file)
+        return self.client._set_cookies(session_id=self.session_id, cookies=cookies, cookie_file=cookie_file)  # pyright: ignore [reportPrivateUsage]
 
     def get_cookies(self) -> list[Cookie]:
         """
         Gets cookies from the session.
 
         Returns:
-            GetCookiesResponse: the response containing the list of cookies in the session
+            GetCookiesResponse: The response containing the list of cookies in the session.
+
+        Raises:
+            ValueError: If the session hasn't been started yet (no session_id available).
         """
         return self.client.get_cookies(session_id=self.session_id).cookies
 
@@ -598,7 +605,7 @@ class RemoteSession(SyncResource):
         Raises:
             ValueError: If the session hasn't been started yet (no session_id available).
         """
-        return self.client.debug_info(session_id=self.session_id)
+        return self.client._debug_info(session_id=self.session_id)  # pyright: ignore [reportPrivateUsage]
 
     def cdp_url(self) -> str:
         """
