@@ -92,11 +92,25 @@ class BrowserController:
         return True
 
     async def execute_interaction_action(self, window: BrowserWindow, action: InteractionAction) -> bool:
+        if window.active_dialog:
+            if action.id == "B300":
+                await window.active_dialog.accept()
+            elif action.id == "B400":
+                await window.active_dialog.dismiss()
+
+            window.active_dialog = None
+            return True
         if action.selector is None:
             raise ValueError(f"Selector is required for {action.name()}")
         press_enter = False
         if action.press_enter is not None:
             press_enter = action.press_enter
+
+        # Handle dialog clicks
+        if action.id.startswith("dialog_"):
+            await window.handle_dialog_click(action.id)
+            return True
+
         # locate element (possibly in iframe)
         locator: Locator = await locate_element(window.page, action.selector)
         original_url = window.page.url
@@ -142,6 +156,8 @@ class BrowserController:
                 else:
                     await locator.fill(get_str_value(value), timeout=action_timeout, force=action.clear_before_fill)
                     await window.short_wait()
+            case DialogAction() as dialog_action:
+                await window.execute_dialog_action(dialog_action)
             case MultiFactorFillAction(value=value):
                 # click the locator, then fill in one number at a time
                 await locator.click()

@@ -1,7 +1,8 @@
 import datetime as dt
 from base64 import b64encode
 from collections.abc import Sequence
-from dataclasses import field
+from dataclasses import field, dataclass
+from typing import Optional
 
 from loguru import logger
 from PIL import Image
@@ -44,12 +45,21 @@ class SnapshotMetadata(BaseModel):
     timestamp: dt.datetime = field(default_factory=dt.datetime.now)
 
 
+@dataclass
+class BrowserDialog:
+    """Information about a browser dialog (alert, confirm, prompt)"""
+    type: str
+    message: str
+    nodes: list[InteractionDomNode]
+
+
 class BrowserSnapshot(BaseModel):
     metadata: SnapshotMetadata
     html_content: str
-    a11y_tree: A11yTree | None
+    a11y_tree: Optional[A11yTree]
     dom_node: DomNode
-    screenshot: bytes | None = Field(repr=False)
+    screenshot: bytes
+    browser_dialog: Optional[BrowserDialog] = None  # Add dialog info to snapshot
 
     model_config = {  # type: ignore[reportUnknownMemberType]
         "json_encoders": {
@@ -80,6 +90,8 @@ class BrowserSnapshot(BaseModel):
         return identical
 
     def interaction_nodes(self) -> Sequence[InteractionDomNode]:
+        if self.browser_dialog is not None:
+            return self.browser_dialog.nodes
         return self.dom_node.interaction_nodes()
 
     def with_dom_node(self, dom_node: DomNode) -> "BrowserSnapshot":
@@ -89,6 +101,7 @@ class BrowserSnapshot(BaseModel):
             a11y_tree=self.a11y_tree,
             dom_node=dom_node,
             screenshot=self.screenshot,
+            browser_dialog=self.browser_dialog,
         )
 
     def subgraph_without(

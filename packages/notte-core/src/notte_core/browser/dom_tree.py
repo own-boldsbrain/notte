@@ -1,15 +1,16 @@
 import time
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
-from typing import Callable, ClassVar, Required, TypeAlias, TypeVar
+from typing import Any, Callable, ClassVar, Required, TypeAlias, TypeVar
 
 from loguru import logger
 from typing_extensions import TypedDict, override
 
-from notte_core.browser.node_type import NodeCategory, NodeRole, NodeType
-from notte_core.errors.processing import (
+from .node_type import NodeCategory, NodeRole, NodeType
+from ..errors.processing import (
     InvalidInternalCheckError,
     NodeFilteringResultsInEmptyGraph,
+    SnapshotProcessingError,
 )
 
 T = TypeVar("T", bound="DomNode")  # T must be a subclass of DomNode
@@ -465,7 +466,111 @@ class DomNode:
 
     def interaction_nodes(self) -> Sequence["InteractionDomNode"]:
         inodes = self.flatten(keep_filter=lambda node: node.is_interaction())
-        return [inode.to_interaction_node() for inode in inodes]
+        base_nodes = [inode.to_interaction_node() for inode in inodes]
+        
+        # Add dialog interaction nodes if there's a dialog
+        dialog_nodes = []
+        if self.role == "dialog":
+            dialog_id = id(self)
+            # Create base attributes for dialog buttons
+            button_attrs = DomAttributes(
+                type="button",
+                role="button",
+                pressed="false",
+                modal=False,
+                required=False,
+                visible=True,
+                selected=False,
+                checked=False,
+                enabled=True,
+                focused=False,
+                disabled=False,
+                value="",
+                valuemin="",
+                valuemax="",
+                description="",
+                autocomplete="",
+                haspopup=False,
+                accesskey="",
+                autofocus=False,
+                tabindex="0",
+                multiselectable=False,
+                tag_name="button",
+                class_name="",
+                href="",
+                src="",
+                srcset="",
+                target="",
+                ping="",
+                data_src="",
+                data_srcset="",
+                placeholder="",
+                title="",
+                alt="",
+                name="",
+                autocorrect="",
+                autocapitalize="",
+                spellcheck=False,
+                maxlength="",
+                width="",
+                height="",
+                size="",
+                rows="",
+                lang="",
+                dir="",
+                action="",
+                aria_label="",
+                aria_labelledby="",
+                aria_describedby="",
+                aria_hidden="false",
+                aria_expanded="false",
+                aria_controls="",
+                aria_haspopup="false",
+                aria_current="false",
+                aria_autocomplete="",
+                aria_selected="false",
+                aria_modal="false",
+                aria_disabled="false",
+                aria_valuenow="",
+                aria_live="",
+                aria_atomic="false",
+                aria_valuemax="",
+                aria_valuemin="",
+                aria_level="",
+                aria_owns="",
+                aria_multiselectable="false",
+                aria_colindex="",
+                aria_colspan="",
+                aria_rowindex="",
+                aria_rowspan="",
+                aria_description="",
+                aria_activedescendant="",
+                hidden=False,
+                expanded=False,
+            )
+            
+            dialog_nodes = [
+                DomNode(
+                    id=f"dialog_accept_{dialog_id}",
+                    type="button",
+                    role=NodeRole.BUTTON,
+                    text=f"Accept dialog: {self.text}",
+                    children=[],
+                    attributes=button_attrs,
+                    computed_attributes=self.computed_attributes
+                ).to_interaction_node(),
+                DomNode(
+                    id=f"dialog_dismiss_{dialog_id}",
+                    type="button",
+                    role=NodeRole.BUTTON,
+                    text=f"Dismiss dialog: {self.text}",
+                    children=[],
+                    attributes=button_attrs,
+                    computed_attributes=self.computed_attributes
+                ).to_interaction_node()
+            ]
+        
+        return base_nodes + dialog_nodes
 
     def image_nodes(self) -> list["DomNode"]:
         return self.flatten(keep_filter=lambda node: node.is_image())

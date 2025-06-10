@@ -15,6 +15,9 @@ from patchright.async_api import (
     Playwright,
     async_playwright,
 )
+from playwright.async_api import (
+    async_playwright as pp,
+)
 from pydantic import PrivateAttr
 from typing_extensions import override
 
@@ -45,7 +48,7 @@ class PlaywrightManager(BaseModel, AsyncResource, BaseWindowManager, ABC):
     async def astart(self) -> None:
         """Initialize the playwright instance"""
         if self._playwright is None:
-            self._playwright = await async_playwright().start()
+            self._playwright = await pp().start()
 
     @override
     async def astop(self) -> None:
