@@ -33,7 +33,7 @@ You will see the following only once. If you need to remember it and you dont kn
 
     @override
     def perceive(self, obs: Observation) -> str:
-        retval = f"""
+        return f"""
 [Relevant metadata]
 {self.perceive_metadata(obs)}
 
@@ -43,9 +43,6 @@ You will see the following only once. If you need to remember it and you dont kn
 [Data found in the page]
 {self.perceive_data(obs)}
 """
-        import logging
-        logging.warning(f'{retval=}')
-        return retval
 
     @override
     def perceive_actions(self, obs: Observation) -> str:

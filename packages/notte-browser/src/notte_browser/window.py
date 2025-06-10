@@ -11,13 +11,12 @@ from notte_core.browser.dom_tree import (
     ComputedDomAttributes,
     DomAttributes,
     DomNode,
-    InteractionDomNode,
     NodeSelectors,
 )
 from notte_core.browser.node_type import NodeType
 from notte_core.browser.snapshot import (
-    BrowserSnapshot,
     BrowserDialog,
+    BrowserSnapshot,
     SnapshotMetadata,
     TabsData,
     ViewportData,
@@ -36,9 +35,10 @@ from patchright.async_api import (
     Dialog,
     Locator,
     Page,
+)
+from patchright.async_api import (
     TimeoutError as PlaywrightTimeoutError,
 )
-from playwright.async_api import Page as PPage
 from pydantic import BaseModel, Field
 from typing_extensions import override
 
@@ -142,28 +142,26 @@ class BrowserResource(BaseModel):
         "arbitrary_types_allowed": True
     }
 
-    page: Page | PPage = Field(exclude=True)
+    page: Page = Field(exclude=True)
     options: BrowserWindowOptions
     browser_id: str | None = None
     context_id: str | None = None
 
 
 class ScreenshotMask(BaseModel):
-    async def mask(self, page: Page | PPage) -> list[Locator]:  # pyright: ignore[reportUnusedParameter]
+    async def mask(self, page: Page) -> list[Locator]:  # pyright: ignore[reportUnusedParameter]
         return []
 
 
 class BrowserWindow(BaseModel):
-    model_config = {
-        "arbitrary_types_allowed": True
-    }
-    
+    model_config = {"arbitrary_types_allowed": True}  # pyright: ignore [reportUnannotatedClassAttribute]
+
     resource: BrowserResource
     screenshot_mask: ScreenshotMask | None = None
     on_close: Callable[[], Awaitable[None]] | None = None
     active_dialog: Dialog | None = Field(default=None, exclude=True)
 
-    def set_page_callback(self, page: Page | PPage) -> None:
+    def set_page_callback(self, page: Page) -> None:
         # Check for popup windows
         page.on("popup", lambda popup: print(f"Popup detected: {popup.url}"))
 
@@ -184,7 +182,7 @@ class BrowserWindow(BaseModel):
         self.set_page_callback(self.resource.page)
 
     @property
-    def page(self) -> Page | PPage:
+    def page(self) -> Page:
         return self.resource.page
 
     async def close(self) -> None:
@@ -218,12 +216,12 @@ class BrowserWindow(BaseModel):
         return f"ws://localhost:{self.port}/devtools/page/{page_id}"
 
     @page.setter
-    def page(self, page: Page | PPage) -> None:
+    def page(self, page: Page) -> None:
         self.resource.page = page
         self.set_page_callback(page)
 
     @property
-    def tabs(self) -> list[Page | PPage]:
+    def tabs(self) -> list[Page]:
         return self.page.context.pages
 
     async def long_wait(self) -> None:
@@ -286,8 +284,6 @@ class BrowserWindow(BaseModel):
         a11y_raw: A11yNode | None = None
         dom_node: DomNode | None = None
 
-
-        logger.error(f"snapshotting {self.active_dialog=}")
         # cant take snapshot if there is a dialog
         if self.active_dialog:
             dialog_nodes = [
@@ -296,7 +292,8 @@ class BrowserWindow(BaseModel):
                     type=NodeType.INTERACTION,
                     role="button",
                     text="",
-                    children=[DomNode(
+                    children=[
+                        DomNode(
                             id=None,
                             type=NodeType.TEXT,
                             role="text",
@@ -317,9 +314,10 @@ class BrowserWindow(BaseModel):
                                     iframe_parent_css_selectors=[],
                                     in_iframe=False,
                                     in_shadow_root=False,
-                                )
-                            )
-                        ),],
+                                ),
+                            ),
+                        ),
+                    ],
                     attributes=DomAttributes.safe_init(tag_name="button"),
                     computed_attributes=ComputedDomAttributes(
                         in_viewport=True,
@@ -335,7 +333,7 @@ class BrowserWindow(BaseModel):
                             iframe_parent_css_selectors=[],
                             in_iframe=False,
                             in_shadow_root=False,
-                        )
+                        ),
                     ),
                 ),
                 DomNode(
@@ -343,7 +341,8 @@ class BrowserWindow(BaseModel):
                     type=NodeType.INTERACTION,
                     role="button",
                     text=f"Dismiss dialog: {self.active_dialog.message}",
-                    children=[DomNode(
+                    children=[
+                        DomNode(
                             id=None,
                             type=NodeType.TEXT,
                             role="text",
@@ -364,9 +363,10 @@ class BrowserWindow(BaseModel):
                                     iframe_parent_css_selectors=[],
                                     in_iframe=False,
                                     in_shadow_root=False,
-                                )
-                            )
-                        ),],
+                                ),
+                            ),
+                        ),
+                    ],
                     attributes=DomAttributes.safe_init(tag_name="button"),
                     computed_attributes=ComputedDomAttributes(
                         in_viewport=True,
@@ -382,19 +382,23 @@ class BrowserWindow(BaseModel):
                             iframe_parent_css_selectors=[],
                             in_iframe=False,
                             in_shadow_root=False,
-                        )
-                    )
-                )
+                        ),
+                    ),
+                ),
             ]
             browser_dialog = BrowserDialog(
-                type=self.active_dialog.type,
-                message=self.active_dialog.message,
-                nodes=dialog_nodes
+                type=self.active_dialog.type, message=self.active_dialog.message, nodes=dialog_nodes
             )
-            logger.error(f"returning snapshot with dialog {browser_dialog=}")
             # Create dialog interaction nodes
             return BrowserSnapshot(
-                metadata=SnapshotMetadata(title="", url="", viewport=ViewportData(scroll_x=0, scroll_y=0, viewport_width=0, viewport_height=0, total_width=0, total_height=0), tabs=[]),
+                metadata=SnapshotMetadata(
+                    title="",
+                    url="",
+                    viewport=ViewportData(
+                        scroll_x=0, scroll_y=0, viewport_width=0, viewport_height=0, total_width=0, total_height=0
+                    ),
+                    tabs=[],
+                ),
                 html_content=html_content,
                 a11y_tree=None,
                 dom_node=DomNode(
@@ -424,10 +428,10 @@ class BrowserWindow(BaseModel):
                                     iframe_parent_css_selectors=[],
                                     in_iframe=False,
                                     in_shadow_root=False,
-                                )
-                            )
+                                ),
+                            ),
                         ),
-                        *dialog_nodes
+                        *dialog_nodes,
                     ],
                     attributes=DomAttributes.safe_init(tag_name="div"),
                     computed_attributes=ComputedDomAttributes(
@@ -444,19 +448,17 @@ class BrowserWindow(BaseModel):
                             iframe_parent_css_selectors=[],
                             in_iframe=False,
                             in_shadow_root=False,
-                        )
-                    )
+                        ),
+                    ),
                 ),
                 screenshot=b"",
-                browser_dialog=browser_dialog
+                browser_dialog=browser_dialog,
             )
         try:
-            logger.error("getting content")
             html_content = await self.page.content()
             a11y_simple = await self.page.accessibility.snapshot()  # type: ignore[attr-defined]
             a11y_raw = await self.page.accessibility.snapshot(interesting_only=False)  # type: ignore[attr-defined]
             dom_node = await ParseDomTreePipe.forward(self.page)
-            logger.error("got content")
 
         except SnapshotProcessingError:
             await self.long_wait()
@@ -488,8 +490,6 @@ class BrowserWindow(BaseModel):
             return await self.snapshot(screenshot=screenshot, retries=retries - 1)
 
         snapshot_screenshot = await self.screenshot()
-
-       
 
         base_snapshot = BrowserSnapshot(
             metadata=await self.snapshot_metadata(),

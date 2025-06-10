@@ -272,9 +272,7 @@ class FalcoAgent(BaseAgent):
             logger.info(f"{step_msg}\n\n")
             if not result.success:
                 # observe again
-                logger.error("trying to observe again")
                 obs = await self.session.aobserve()
-                logger.error("managed to observe")
 
                 # cast is necessary because we cant have covariance
                 # in ExecutionStatus

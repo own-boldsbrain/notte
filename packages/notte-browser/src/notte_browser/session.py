@@ -227,17 +227,15 @@ class NotteSession(AsyncResource, SyncResource):
         # ------ Step 1: snapshot --------
         # --------------------------------
 
-        logger.error("snapshotting")
         self._snapshot = await self.window.snapshot()
-        # if config.verbose:
-        #     logger.debug(f"ℹ️ previous actions IDs: {[a.id for a in self.previous_interaction_actions or []]}")
-        #     logger.debug(f"ℹ️ snapshot inodes IDs: {[node.id for node in self.snapshot.interaction_nodes()]}")
+        if config.verbose:
+            logger.debug(f"ℹ️ previous actions IDs: {[a.id for a in self.previous_interaction_actions or []]}")
+            logger.debug(f"ℹ️ snapshot inodes IDs: {[node.id for node in self.snapshot.interaction_nodes()]}")
 
         # --------------------------------
         # ---- Step 2: action listing ----
         # --------------------------------
 
-        logger.error("listing actions")
         space = await self._interaction_action_listing(
             pagination=PaginationParams.model_validate(pagination),
             retry=self.observe_max_retry_after_snapshot_update,
@@ -255,7 +253,6 @@ class NotteSession(AsyncResource, SyncResource):
         # ----- Step 2: scraped data -----
         # --------------------------------
 
-        logger.error("scraping data")
         # forward data from scraping pipe if scraped was the last action
         data = self._scraped_data
         # check auto scrape
@@ -268,7 +265,6 @@ class NotteSession(AsyncResource, SyncResource):
         # ------- Step 3: tracing --------
         # --------------------------------
 
-        logger.error("tracing")
         obs = Observation.from_snapshot(self._snapshot, space=space, data=data)
         # final step is to add obs, action pair to the trajectory and trigger the callback
         self.trajectory.append(TrajectoryStep(obs=obs, action=self.action))
