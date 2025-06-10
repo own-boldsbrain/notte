@@ -8,14 +8,9 @@ from loguru import logger
 from notte_core.browser.dom_tree import (
     A11yNode,
     A11yTree,
-    ComputedDomAttributes,
-    DomAttributes,
     DomNode,
-    NodeSelectors,
 )
-from notte_core.browser.node_type import NodeType
 from notte_core.browser.snapshot import (
-    BrowserDialog,
     BrowserSnapshot,
     SnapshotMetadata,
     TabsData,
@@ -41,6 +36,8 @@ from patchright.async_api import (
 )
 from pydantic import BaseModel, Field
 from typing_extensions import override
+
+from notte_browser.browser_dialog import BrowserDialogHandler
 
 from .dom.parsing import ParseDomTreePipe
 from .errors import (
@@ -162,19 +159,12 @@ class BrowserWindow(BaseModel):
     active_dialog: Dialog | None = Field(default=None, exclude=True)
 
     def set_page_callback(self, page: Page) -> None:
-        # Check for popup windows
-        page.on("popup", lambda popup: print(f"Popup detected: {popup.url}"))
-
         async def handle_dialog(dialog: Dialog) -> None:
             # Store dialog for handling actions
             self.active_dialog = dialog
-            logger.info(f"Dialog detected: {dialog.type} - {dialog.message}")
 
         # Set up dialog handler
         page.on("dialog", handle_dialog)
-
-        # Check console messages
-        page.on("console", lambda msg: print(f"Console: {msg.text}"))
 
     @override
     def model_post_init(self, __context: Any) -> None:
@@ -286,174 +276,8 @@ class BrowserWindow(BaseModel):
 
         # cant take snapshot if there is a dialog
         if self.active_dialog:
-            dialog_nodes = [
-                DomNode(
-                    id="B300",
-                    type=NodeType.INTERACTION,
-                    role="button",
-                    text="",
-                    children=[
-                        DomNode(
-                            id=None,
-                            type=NodeType.TEXT,
-                            role="text",
-                            text="ACCEPT",
-                            children=[],
-                            attributes=DomAttributes.safe_init(tag_name="p"),
-                            computed_attributes=ComputedDomAttributes(
-                                in_viewport=True,
-                                is_interactive=False,
-                                is_top_element=False,
-                                is_editable=False,
-                                shadow_root=False,
-                                selectors=NodeSelectors(
-                                    css_selector="p",
-                                    xpath_selector="p",
-                                    notte_selector="",
-                                    playwright_selector="p",
-                                    iframe_parent_css_selectors=[],
-                                    in_iframe=False,
-                                    in_shadow_root=False,
-                                ),
-                            ),
-                        ),
-                    ],
-                    attributes=DomAttributes.safe_init(tag_name="button"),
-                    computed_attributes=ComputedDomAttributes(
-                        in_viewport=True,
-                        is_interactive=True,
-                        is_top_element=False,
-                        is_editable=False,
-                        shadow_root=False,
-                        selectors=NodeSelectors(
-                            css_selector="button",
-                            xpath_selector="button",
-                            notte_selector="",
-                            playwright_selector="button",
-                            iframe_parent_css_selectors=[],
-                            in_iframe=False,
-                            in_shadow_root=False,
-                        ),
-                    ),
-                ),
-                DomNode(
-                    id="B400",
-                    type=NodeType.INTERACTION,
-                    role="button",
-                    text=f"Dismiss dialog: {self.active_dialog.message}",
-                    children=[
-                        DomNode(
-                            id=None,
-                            type=NodeType.TEXT,
-                            role="text",
-                            text="DISMISS",
-                            children=[],
-                            attributes=DomAttributes.safe_init(tag_name="p"),
-                            computed_attributes=ComputedDomAttributes(
-                                in_viewport=True,
-                                is_interactive=False,
-                                is_top_element=False,
-                                is_editable=False,
-                                shadow_root=False,
-                                selectors=NodeSelectors(
-                                    css_selector="p",
-                                    xpath_selector="p",
-                                    notte_selector="",
-                                    playwright_selector="p",
-                                    iframe_parent_css_selectors=[],
-                                    in_iframe=False,
-                                    in_shadow_root=False,
-                                ),
-                            ),
-                        ),
-                    ],
-                    attributes=DomAttributes.safe_init(tag_name="button"),
-                    computed_attributes=ComputedDomAttributes(
-                        in_viewport=True,
-                        is_interactive=True,
-                        is_top_element=False,
-                        is_editable=False,
-                        shadow_root=False,
-                        selectors=NodeSelectors(
-                            css_selector="button",
-                            xpath_selector="button",
-                            notte_selector="",
-                            playwright_selector="div",
-                            iframe_parent_css_selectors=[],
-                            in_iframe=False,
-                            in_shadow_root=False,
-                        ),
-                    ),
-                ),
-            ]
-            browser_dialog = BrowserDialog(
-                type=self.active_dialog.type, message=self.active_dialog.message, nodes=dialog_nodes
-            )
-            # Create dialog interaction nodes
-            return BrowserSnapshot(
-                metadata=SnapshotMetadata(
-                    title="",
-                    url="",
-                    viewport=ViewportData(
-                        scroll_x=0, scroll_y=0, viewport_width=0, viewport_height=0, total_width=0, total_height=0
-                    ),
-                    tabs=[],
-                ),
-                html_content=html_content,
-                a11y_tree=None,
-                dom_node=DomNode(
-                    id=None,
-                    type=NodeType.OTHER,
-                    role="dialog",
-                    text="",
-                    children=[
-                        DomNode(
-                            id=None,
-                            type=NodeType.TEXT,
-                            role="text",
-                            text=self.active_dialog.message,
-                            children=[],
-                            attributes=DomAttributes.safe_init(tag_name="p"),
-                            computed_attributes=ComputedDomAttributes(
-                                in_viewport=True,
-                                is_interactive=False,
-                                is_top_element=False,
-                                is_editable=False,
-                                shadow_root=False,
-                                selectors=NodeSelectors(
-                                    css_selector="p",
-                                    xpath_selector="p",
-                                    notte_selector="",
-                                    playwright_selector="p",
-                                    iframe_parent_css_selectors=[],
-                                    in_iframe=False,
-                                    in_shadow_root=False,
-                                ),
-                            ),
-                        ),
-                        *dialog_nodes,
-                    ],
-                    attributes=DomAttributes.safe_init(tag_name="div"),
-                    computed_attributes=ComputedDomAttributes(
-                        in_viewport=True,
-                        is_interactive=False,
-                        is_top_element=True,
-                        is_editable=False,
-                        shadow_root=False,
-                        selectors=NodeSelectors(
-                            css_selector="div",
-                            xpath_selector="div",
-                            notte_selector="",
-                            playwright_selector="div",
-                            iframe_parent_css_selectors=[],
-                            in_iframe=False,
-                            in_shadow_root=False,
-                        ),
-                    ),
-                ),
-                screenshot=b"",
-                browser_dialog=browser_dialog,
-            )
+            return BrowserDialogHandler.dialog_snapshot(self.active_dialog)
+
         try:
             html_content = await self.page.content()
             a11y_simple = await self.page.accessibility.snapshot()  # type: ignore[attr-defined]

@@ -29,6 +29,7 @@ from notte_core.utils.platform import platform_control_key
 from patchright.async_api import Locator
 from typing_extensions import final
 
+from notte_browser.browser_dialog import BrowserDialogHandler
 from notte_browser.dom.locate import locate_element
 from notte_browser.errors import capture_playwright_errors
 from notte_browser.window import BrowserWindow
@@ -92,24 +93,22 @@ class BrowserController:
         return True
 
     async def execute_interaction_action(self, window: BrowserWindow, action: InteractionAction) -> bool:
-        if window.active_dialog:
-            if action.id == "B300":
+        if window.active_dialog is not None:
+            if action.id == BrowserDialogHandler.ACCEPT_ID:
                 await window.active_dialog.accept()
-            elif action.id == "B400":
+            elif action.id == BrowserDialogHandler.DISMISS_ID:
                 await window.active_dialog.dismiss()
+            if action.id == BrowserDialogHandler.FILL_ID and isinstance(action, FillAction):
+                await window.active_dialog.accept(prompt_text=get_str_value(action.value))
 
             window.active_dialog = None
             return True
+
         if action.selector is None:
             raise ValueError(f"Selector is required for {action.name()}")
         press_enter = False
         if action.press_enter is not None:
             press_enter = action.press_enter
-
-        # Handle dialog clicks
-        if action.id.startswith("dialog_"):
-            await window.handle_dialog_click(action.id)
-            return True
 
         # locate element (possibly in iframe)
         locator: Locator = await locate_element(window.page, action.selector)
@@ -156,8 +155,6 @@ class BrowserController:
                 else:
                     await locator.fill(get_str_value(value), timeout=action_timeout, force=action.clear_before_fill)
                     await window.short_wait()
-            case DialogAction() as dialog_action:
-                await window.execute_dialog_action(dialog_action)
             case MultiFactorFillAction(value=value):
                 # click the locator, then fill in one number at a time
                 await locator.click()
