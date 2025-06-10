@@ -42,9 +42,6 @@ class NodeResolutionPipe:
             raise InvalidActionError("unknown", f"action is not an interaction action: {action.type}")
         # resolve selector
         selector_map: dict[str, InteractionDomNode] = {inode.id: inode for inode in snapshot.interaction_nodes()}
-        import logging
-
-        logging.warning(f"{action=} {selector_map=}")
         if action.id not in selector_map:
             raise InvalidActionError(action_id=action.id, reason=f"action '{action.id}' not found in page context.")
         node = selector_map[action.id]
