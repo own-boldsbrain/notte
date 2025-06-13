@@ -278,7 +278,7 @@ class SessionsClient(BaseClient):
         response = self.request(endpoint)
         return response
 
-    def set_cookies(
+    def _set_cookies(
         self,
         session_id: str,
         cookies: List[Cookie] | None = None,  # pyright: ignore [reportDeprecated]
@@ -296,7 +296,7 @@ class SessionsClient(BaseClient):
         Returns:
             SetCookiesResponse: The response from the upload cookies request.
         """
-        endpoint = SessionsClient.session_set_cookies_endpoint(session_id=session_id)
+        endpoint = SessionsClient._session_set_cookies_endpoint(session_id=session_id)
 
         if cookies is not None and cookie_file is not None:
             raise ValueError("Cannot provide both cookies and cookie_file")
@@ -310,14 +310,14 @@ class SessionsClient(BaseClient):
 
         return self.request(endpoint.with_request(request))
 
-    def get_cookies(self, session_id: str) -> GetCookiesResponse:
+    def _get_cookies(self, session_id: str) -> GetCookiesResponse:
         """
         Gets cookies from the session.
 
         Returns:
             GetCookiesResponse: the response containing the list of cookies in the session
         """
-        endpoint = SessionsClient.session_get_cookies_endpoint(session_id=session_id)
+        endpoint = SessionsClient._session_get_cookies_endpoint(session_id=session_id)
         return self.request(endpoint)
 
     def list(self, **data: Unpack[SessionListRequestDict]) -> Sequence[SessionResponse]:
@@ -383,7 +383,7 @@ class SessionsClient(BaseClient):
         """
         Opens live session replay in browser (frame by frame)
         """
-        debug_info = self.debug_info(session_id=session_id)
+        debug_info = self._debug_info(session_id=session_id)
 
         base_url = urljoin(self.server_url + "/", f"{self.base_endpoint_path}/{self.SESSION_VIEWER}/")
         viewer_url = urljoin(base_url, f"index.html?ws={debug_info.ws.recording}")
@@ -393,7 +393,7 @@ class SessionsClient(BaseClient):
         """
         Returns a WebsocketJupyterDisplay for displaying live session replay in Jupyter notebook.
         """
-        debug_info = self.debug_info(session_id=session_id)
+        debug_info = self._debug_info(session_id=session_id)
         return WebsocketService(wss_url=debug_info.ws.recording, process=display_image_in_notebook)
 
     def viewer_cdp(self, session_id: str) -> None:
@@ -593,7 +593,7 @@ class RemoteSession(SyncResource):
         Raises:
             ValueError: If the session hasn't been started yet (no session_id available).
         """
-        return self.client.get_cookies(session_id=self.session_id).cookies
+        return self.client._get_cookies(session_id=self.session_id).cookies  # pyright: ignore[reportPrivateUsage]
 
     def debug_info(self) -> SessionDebugResponse:
         """
@@ -627,12 +627,44 @@ class RemoteSession(SyncResource):
     # #######################################################################
 
     def scrape(self, **data: Unpack[ScrapeRequestDict]) -> ScrapeResponse:
+        """
+        Scrapes a page using provided parameters via the Notte API.
+
+        Args:
+            **data: Arbitrary keyword arguments validated against ScrapeRequestDict,
+
+        Returns:
+            ScrapeResponse: An Observation object containing metadata, screenshot, action space, and data space.
+
+        """
         return self.client.page.scrape(session_id=self.session_id, **data)
 
     def observe(self, **data: Unpack[ObserveRequestDict]) -> ObserveResponse:
+        """
+        Observes a page and indexes actions that can be taken.
+
+        Args:
+            **data: Arbitrary keyword arguments corresponding to observation request fields.
+
+        Returns:
+            ObserveResponse: The formatted observation result from the API response.
+        """
         return self.client.page.observe(session_id=self.session_id, **data)
 
     def step(self, **data: Unpack[StepRequestDict]) -> StepResponse:
+        """
+        Take an action on the current step
+
+        Validates the provided keyword arguments to ensure they conform to the step
+        request schema.
+
+        Args:
+            **data: Arbitrary keyword arguments matching the expected structure for a
+                step request.
+
+        Returns:
+            StepResponse: Result from the step execution
+        """
         return self.client.page.step(session_id=self.session_id, **data)
 
 

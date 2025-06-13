@@ -1167,6 +1167,16 @@ class ScrapeRequest(ScrapeParams):
 
 
 class StepRequestDict(PaginationParamsDict, total=False):
+    """Request dictionary for step operations.
+
+    Args:
+        type: The type of action to execute. Can be "step" or a browser action type.
+        action_id: The ID of the action to execute. Required for step type actions.
+        value: The value to input for form actions.
+        enter: Whether to press enter after inputting the value.
+        action: The action to execute. Cannot be used together with action_id, value, or enter.
+    """
+
     type: str
     action_id: str | None
     value: str | int | None
@@ -1275,10 +1285,12 @@ class AgentCreateRequestDict(SessionRequestDict, total=False):
     """Request dictionary for agent create operations.
 
     Args:
-        reasoning_model: The language model to use for agent reasoning
-        use_vision: Whether to enable vision capabilities for the agent
-        max_steps: Maximum number of steps the agent can take
-        vault_id: Optional ID of the vault to use
+        session_id: The ID of the session to use.
+        reasoning_model: The language model to use for agent reasoning.
+        use_vision: Whether to enable vision capabilities for the agent.
+        max_steps: Maximum number of steps the agent can take.
+        vault_id: Optional ID of the vault to use.
+        notifier_config: Config used for the notifier.
     """
 
     reasoning_model: LlmModel
@@ -1292,8 +1304,9 @@ class AgentRunRequestDict(TypedDict, total=False):
     """Request dictionary for agent run operations.
 
     Args:
-        task: The task description to execute (required)
-        url: Optional URL to process, defaults to None
+        task: The task description to execute (required).
+        url: Optional URL to process, defaults to None.
+        response_format: The response format to use for the agent answer. You can use a Pydantic model or a JSON Schema dict.
     """
 
     task: Required[str]
@@ -1302,6 +1315,20 @@ class AgentRunRequestDict(TypedDict, total=False):
 
 
 class AgentStartRequestDict(AgentCreateRequestDict, AgentRunRequestDict, total=False):
+    """Request dictionary for starting an agent.
+
+    Args:
+        session_id: The ID of the session to use.
+        reasoning_model: The language model to use for agent reasoning.
+        use_vision: Whether to enable vision capabilities for the agent.
+        max_steps: Maximum number of steps the agent can take.
+        vault_id: Optional ID of the vault to use.
+        notifier_config: Config used for the notifier.
+        task: The task description to execute.
+        url: Optional URL to process.
+        response_format: The response format to use for the agent answer.
+    """
+
     pass
 
 
@@ -1367,8 +1394,8 @@ class AgentStatusRequestDict(TypedDict, total=False):
     """Request dictionary for agent status operations.
 
     Args:
-        agent_id: The ID of the agent for which to get the status
-        replay: Whether to include the replay in the response
+        agent_id: The ID of the agent for which to get the status.
+        replay: Whether to include the replay in the response.
     """
 
     agent_id: Required[Annotated[str, Field(description="The ID of the agent for which to get the status")]]
@@ -1380,6 +1407,18 @@ class AgentStatusRequest(AgentSessionRequest):
 
 
 class AgentListRequestDict(SessionListRequestDict, total=False):
+    """Request dictionary for listing agents.
+
+    Args:
+        only_active: Whether to only list active agents.
+        page_size: Number of agents to return per page.
+        page: Page number to return.
+        only_saved: Whether to only list saved agents.
+    """
+
+    only_active: bool
+    page_size: int
+    page: int
     only_saved: bool
 
 
