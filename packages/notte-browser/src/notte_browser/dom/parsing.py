@@ -89,7 +89,10 @@ class ParseDomTreePipe:
 
             return text_node
 
-        tag_name = node["tagName"]
+        if "tagName" not in node:
+            raise ValueError(f"Tag name is None for node: {node}")
+
+        tag_name = (node["tagName"],)
         attrs = node.get("attributes", {})
         xpath = node["xpath"]
 
