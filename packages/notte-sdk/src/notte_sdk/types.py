@@ -1199,7 +1199,7 @@ class AgentCreateRequest(SessionRequest):
 
     @field_validator("reasoning_model")
     @classmethod
-    def validate_reasoning_model(cls, value: LlmModel) -> LlmModel:
+    def validate_reasoning_model(cls, value: LlmModel | str) -> LlmModel | str:
         provider = LlmModel.get_provider(value)
         if not provider.has_apikey_in_env():
             raise ValueError(
