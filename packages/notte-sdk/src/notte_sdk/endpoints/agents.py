@@ -7,6 +7,7 @@ import websockets
 from halo import Halo  # pyright: ignore[reportMissingTypeStubs]
 from loguru import logger
 from notte_core.actions import CompletionAction
+from notte_core.common.config import config
 from notte_core.common.notifier import BaseNotifier
 from notte_core.utils.webp_replay import WebpReplay
 from pydantic import BaseModel
@@ -636,7 +637,7 @@ class RemoteAgentFactory:
 
     def __call__(
         self,
-        headless: bool = False,
+        headless: bool = config.headless,
         vault: NotteVault | None = None,
         notifier: BaseNotifier | None = None,
         session: RemoteSession | None = None,
