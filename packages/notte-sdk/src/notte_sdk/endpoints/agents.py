@@ -659,6 +659,14 @@ class RemoteAgentFactory:
             RemoteAgent: A new RemoteAgent instance configured with the specified parameters.
         """
         request = AgentCreateRequest.model_validate(data)
+        if notifier is not None:
+            notifier_config = notifier.model_dump()
+            request.notifier_config = notifier_config
+
+        # #########################################################
+        # ###################### Vault checks #####################
+        # #########################################################
+
         if vault is None:
             vault_id = get_context_vault_id()
             if vault_id is not None:
@@ -675,9 +683,10 @@ class RemoteAgentFactory:
             if len(vault.vault_id) == 0:
                 raise ValueError("Vault ID cannot be empty")
             request.vault_id = vault.vault_id
-        if notifier is not None:
-            notifier_config = notifier.model_dump()
-            request.notifier_config = notifier_config
+
+        # #########################################################
+        # #################### Session checks #####################
+        # #########################################################
 
         if session is None:
             # check context var to provide better error message to users
@@ -691,6 +700,7 @@ class RemoteAgentFactory:
                 if raise_on_existing_contextual_session:
                     raise ValueError(error_msg)
                 logger.warning(error_msg)
+
         if session is not None:
             if not isinstance(session, RemoteSession):  # pyright: ignore[reportUnnecessaryIsInstance]
                 raise ValueError(
@@ -699,4 +709,12 @@ class RemoteAgentFactory:
             if len(session.session_id) == 0:
                 raise ValueError("Session ID cannot be empty")
             request.session_id = session.session_id
+
+            # headless check
+            if session.request.headless != headless:
+                logger.warning(
+                    f"Session headless is {session.request.headless} but agent is headless={headless}. This is unexpected. Session flags will be prioritized over agent flags."
+                )
+                headless = session.request.headless
+
         return RemoteAgent(self.client, request, headless=headless, open_viewer=self.open_viewer)
