@@ -1,11 +1,13 @@
 from pathlib import Path
+from typing import Any
 
 from loguru import logger
 from notte_core.browser.dom_tree import DomNode as NotteDomNode
+from notte_core.browser.dom_tree import DomTreeDict
+from notte_core.browser.snapshot import DomSnapshot
 from notte_core.common.config import config
 from notte_core.errors.processing import SnapshotProcessingError
 from patchright.async_api import Page
-from typing_extensions import TypedDict
 
 from notte_browser.dom.csspaths import build_csspath
 from notte_browser.dom.id_generation import generate_sequential_ids
@@ -14,26 +16,11 @@ from notte_browser.dom.types import DOMBaseNode, DOMElementNode, DOMTextNode
 DOM_TREE_JS_PATH = Path(__file__).parent / "buildDomNode.js"
 
 
-class DomTreeDict(TypedDict):
-    type: str
-    text: str
-    tagName: str | None
-    xpath: str | None
-    attributes: dict[str, str]
-    isVisible: bool
-    isInteractive: bool
-    isTopElement: bool
-    isEditable: bool
-    highlightIndex: int | None
-    shadowRoot: bool
-    children: list["DomTreeDict"]
-
-
 class ParseDomTreePipe:
     @staticmethod
     async def forward(page: Page) -> NotteDomNode:
-        dom_tree = await ParseDomTreePipe.get_dom_tree(page)
-        return await ParseDomTreePipe.forward_dom_tree(dom_tree, page.url)
+        dom_tree = await ParseDomTreePipe.get_dom_snapshot(page)
+        return await ParseDomTreePipe.forward_dom_tree(dom_tree.dom, page.url)
 
     @staticmethod
     async def forward_dom_tree(node: DomTreeDict, url: str) -> NotteDomNode:
@@ -43,7 +30,7 @@ class ParseDomTreePipe:
         return notte_dom_tree
 
     @staticmethod
-    async def get_dom_tree(page: Page) -> DomTreeDict:
+    async def get_dom_snapshot(page: Page) -> DomSnapshot:
         js_code = DOM_TREE_JS_PATH.read_text()
         dom_config: dict[str, bool | int] = {
             "highlight_elements": config.highlight_elements,
@@ -52,10 +39,10 @@ class ParseDomTreePipe:
         }
         if config.verbose:
             logger.trace(f"Parsing DOM tree for {page.url} with config: {dom_config}")
-        node: DomTreeDict | None = await page.evaluate(js_code, dom_config)
+        node: dict[str, Any] | None = await page.evaluate(js_code, dom_config)
         if node is None:
             raise SnapshotProcessingError(page.url, "Failed to parse HTML to dictionary")
-        return node
+        return DomSnapshot.model_validate(node)
 
     @staticmethod
     async def parse_dom_tree(node: DomTreeDict, url: str) -> DOMBaseNode:
@@ -90,9 +77,9 @@ class ParseDomTreePipe:
             return text_node
 
         if "tagName" not in node:
-            raise ValueError(f"Tag name is None for node: {node}")
+            raise ValueError(f"Tag name is None for node: {node}")  # pyright: ignore[reportUnreachable]
 
-        tag_name = (node["tagName"],)
+        tag_name = node["tagName"]
         attrs = node.get("attributes", {})
         xpath = node["xpath"]
 

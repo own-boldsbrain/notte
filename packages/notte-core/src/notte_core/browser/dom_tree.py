@@ -15,6 +15,21 @@ from notte_core.errors.processing import (
 T = TypeVar("T", bound="DomNode")  # T must be a subclass of DomNode
 
 
+class DomTreeDict(TypedDict):
+    type: str
+    text: str
+    tagName: str | None
+    xpath: str | None
+    attributes: dict[str, str]
+    isVisible: bool
+    isInteractive: bool
+    isTopElement: bool
+    isEditable: bool
+    highlightIndex: int | None
+    shadowRoot: bool
+    children: list["DomTreeDict"]
+
+
 class A11yNode(TypedDict, total=False):
     # from the a11y tree
     role: Required[str]

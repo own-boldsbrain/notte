@@ -24,6 +24,13 @@
 			total_width: document.documentElement.scrollWidth,
 			total_height: document.documentElement.scrollHeight,
 		},
+		tabs: [
+			{
+				tab_id: 0,
+				title: document.title,
+				url: window.location.href,
+			}
+		],
 	}
 
 	function highlightElement(element, index, parentIframe = null) {
@@ -521,10 +528,9 @@
 		return nodeData;
 	}
 
-
 	return {
 		metadata,
-		html: document.documentElement.outerHTML,
-		dom_node: buildDomTree(document.body),
+		html_content: document.documentElement.outerHTML,
+		dom: buildDomTree(document.body),
 	}
 }
