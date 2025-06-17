@@ -8,6 +8,7 @@ from webbrowser import open as open_browser
 
 from loguru import logger
 from notte_core.common.resource import SyncResource
+from notte_core.errors.base import NotteBaseError
 from notte_core.utils.webp_replay import WebpReplay
 from pydantic import BaseModel
 from typing_extensions import final, override
@@ -48,6 +49,16 @@ class SessionViewerType(StrEnum):
     CDP = "cdp"
     BROWSER = "browser"
     JUPYTER = "jupyter"
+
+
+class SessionNotStartedError(NotteBaseError):
+    def __init__(self) -> None:
+        super().__init__(
+            dev_message=("Session not started. You should use `session.start()` to start a new session."),
+            user_message="Session not started. Please start a new session to continue.",
+            agent_message="Browser not started. Terminate the current session and start a new one.",
+            should_retry_later=False,
+        )
 
 
 @final
@@ -514,7 +525,7 @@ class RemoteSession(SyncResource):
             ValueError: If the session hasn't been started yet (no response available).
         """
         if self.response is None:
-            raise ValueError("You need to start the session first to get the session id")
+            raise SessionNotStartedError()
         return self.response.session_id
 
     def replay(self) -> WebpReplay:

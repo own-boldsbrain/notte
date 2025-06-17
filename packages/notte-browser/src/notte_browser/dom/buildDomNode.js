@@ -3,9 +3,22 @@
 	{ highlight_elements, focus_element, viewport_expansion }
 ) => {
 
+	function hashString(str) {
+		let hash = 0;
+		for (let i = 0; i < str.length; i++) {
+			hash = (hash << 5) - hash + str.charCodeAt(i);
+		}
+		return hash;
+	}
+
 	class IdGenerator {
 		constructor() {
-			this.state = 0;
+			this.link_counter = 0;
+			this.button_counter = 0;
+			this.input_counter = 0;
+			this.image_counter = 0;
+			this.other_counter = 0;
+			this.total_counter = 0;
 		}
 
 		isInteractive(node) {
@@ -16,8 +29,40 @@
 			if (!this.isInteractive(node)) {
 				throw new Error("Node is not interactive");
 			}
-			this.state += 1;
-			return this.state - 1;
+			this.total_counter += 1;
+			switch (node.tagName.toLowerCase(), node.role) {
+				case 'a':
+					this.link_counter += 1;
+					return `L${this.link_counter}`;
+				case 'button':
+				case 'menuitem':
+				case 'menuitemcheckbox':
+				case 'menuitemradio':
+				case 'menu':
+				case 'menubar':
+				case 'radiogroup':
+				case 'tablist':
+					this.button_counter += 1;
+					return `B${this.button_counter}`;
+				case 'input':
+				case 'textarea':
+				case 'select':
+				case 'option':
+				case 'optgroup':
+				case 'fieldset':
+				case 'legend':
+				case 'datalist':
+					this.input_counter += 1;
+					return `I${this.input_counter}`;
+				case 'img':
+				case 'figure':
+				case 'image':
+					this.image_counter += 1;
+					return `F${this.image_counter}`;
+				default:
+					this.other_counter += 1;
+					return `O${this.other_counter}`;
+			}
 		}
 	}
 
@@ -43,7 +88,7 @@
 			'#800080', '#008080', '#FF69B4', '#4B0082',
 			'#FF4500', '#2E8B57', '#DC143C', '#4682B4'
 		];
-		const colorIndex = index % colors.length;
+		const colorIndex = hashString(index) % colors.length;
 		const baseColor = colors[colorIndex];
 		const backgroundColor = `${baseColor}1A`; // 10% opacity version of the color
 
@@ -189,9 +234,24 @@
 	// Helper function to check if element is interactive
 	function isInteractiveElement(element) {
 		// Base interactive elements and roles
+
 		const interactiveElements = new Set([
-			'a', 'button', 'details', 'embed', 'input', 'label',
-			'menu', 'menuitem', 'object', 'select', 'textarea', 'summary'
+			"a",          // Links
+			"button",     // Buttons
+			"input",      // All input types (text, checkbox, radio, etc.)
+			"select",     // Dropdown menus
+			"textarea",   // Text areas
+			"details",    // Expandable details
+			"summary",    // Summary element (clickable part of details)
+			"label",      // Form labels (often clickable)
+			"option",     // Select options
+			"optgroup",   // Option groups
+			"fieldset",   // Form fieldsets (can be interactive with legend)
+			"legend",     // Fieldset legends
+			"embed",
+			"menu",
+			"menuitem",
+			"object"
 		]);
 
 		const interactiveRoles = new Set([
@@ -202,16 +262,82 @@
 			'menuitemcheckbox', 'menuitemradio', 'a-button-text', 'button-text', 'button-icon', 'button-icon-only', 'button-text-icon-only', 'dropdown', 'combobox'
 		]);
 
+		// Define explicit disable attributes and properties
+		const explicitDisableTags = new Set([
+			'disabled',           // Standard disabled attribute
+			// 'aria-disabled',      // ARIA disabled state
+			'readonly',          // Read-only state
+			// 'aria-readonly',     // ARIA read-only state
+			// 'aria-hidden',       // Hidden from accessibility
+			// 'hidden',            // Hidden attribute
+			// 'inert',             // Inert attribute
+			// 'aria-inert',        // ARIA inert state
+			// 'tabindex="-1"',     // Removed from tab order
+			// 'aria-hidden="true"' // Hidden from screen readers
+		]);
+
+		// Define interactive cursors
+		const interactiveCursors = new Set([
+			'pointer',    // Link/clickable elements
+			'move',       // Movable elements
+			'text',       // Text selection
+			'grab',       // Grabbable elements
+			'grabbing',   // Currently grabbing
+			'cell',       // Table cell selection
+			'copy',       // Copy operation
+			'alias',      // Alias creation
+			'all-scroll', // Scrollable content
+			'col-resize', // Column resize
+			'context-menu', // Context menu available
+			'crosshair',  // Precise selection
+			'e-resize',   // East resize
+			'ew-resize',  // East-west resize
+			'help',       // Help available
+			'n-resize',   // North resize
+			'ne-resize',  // Northeast resize
+			'nesw-resize', // Northeast-southwest resize
+			'ns-resize',  // North-south resize
+			'nw-resize',  // Northwest resize
+			'nwse-resize', // Northwest-southeast resize
+			'row-resize', // Row resize
+			's-resize',   // South resize
+			'se-resize',  // Southeast resize
+			'sw-resize',  // Southwest resize
+			'vertical-text', // Vertical text selection
+			'w-resize',   // West resize
+			'zoom-in',    // Zoom in
+			'zoom-out'    // Zoom out
+		]);
+
+		// Define non-interactive cursors
+		const nonInteractiveCursors = new Set([
+			'not-allowed', // Action not allowed
+			'no-drop',     // Drop not allowed
+			'wait',        // Processing
+			'progress',    // In progress
+			'initial',     // Initial value
+			'inherit'      // Inherited value
+			//? Let's just include all potentially clickable elements that are not specifically blocked
+			// 'none',        // No cursor
+			// 'default',     // Default cursor
+			// 'auto',        // Browser default
+		]);
+
 		const tagName = element.tagName.toLowerCase();
 		const role = element.getAttribute('role');
 		const ariaRole = element.getAttribute('aria-role');
 		const tabIndex = element.getAttribute('tabindex');
+		const cursor = element.style.cursor;
+
+
+		const hasInteractiveCursor = tagName !== "html" && interactiveCursors.has(cursor);
 
 		// Add check for specific class
 		const hasAddressInputClass = element.classList.contains('address-input__container__input');
 
 		// Basic role/attribute checks
-		const hasInteractiveRole = hasAddressInputClass ||
+		const hasInteractiveRole = hasInteractiveCursor ||
+			hasAddressInputClass ||
 			interactiveElements.has(tagName) ||
 			interactiveRoles.has(role) ||
 			interactiveRoles.has(ariaRole) ||

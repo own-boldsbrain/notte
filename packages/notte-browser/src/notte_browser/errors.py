@@ -56,8 +56,7 @@ class BrowserNotStartedError(BrowserError):
     def __init__(self) -> None:
         super().__init__(
             dev_message=(
-                "Browser not started. You should use `await browser.start()` to start a new session "
-                "(or `session.start()`)."
+                "Session not started. You should use `session.start()` to start a new session (or `session.start()`)."
             ),
             user_message="Session not started. Please start a new session to continue.",
             agent_message="Browser not started. Terminate the current session and start a new one.",
