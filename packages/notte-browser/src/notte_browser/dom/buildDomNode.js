@@ -1,9 +1,25 @@
 // file taken from: https://github.com/browser-use/browser-use/blob/main/browser_use/dom/buildDomTree.js
 (
-	{highlight_elements, focus_element, viewport_expansion }
+	{ highlight_elements, focus_element, viewport_expansion }
 ) => {
 
-	let highlightIndex = 0; // Reset highlight index
+	class IdGenerator {
+		constructor() {
+			this.state = 0;
+		}
+
+		isInteractive(node) {
+			return node.isInteractive && node.isVisible && node.isTopElement;
+		}
+
+		generateNextId(node) {
+			if (!this.isInteractive(node)) {
+				throw new Error("Node is not interactive");
+			}
+			this.state += 1;
+			return this.state - 1;
+		}
+	}
 
 	function highlightElement(element, index, parentIframe = null) {
 		// Create or get highlight container
@@ -145,30 +161,30 @@
 	}
 
 
-    // Add isEditable check
-    function isEditableElement(element) {
-        // Check if element is disabled
-        if (element.disabled || element.getAttribute('aria-disabled') === 'true') {
-            return false;
-        }
+	// Add isEditable check
+	function isEditableElement(element) {
+		// Check if element is disabled
+		if (element.disabled || element.getAttribute('aria-disabled') === 'true') {
+			return false;
+		}
 
-        // Check for readonly attribute
-        const isReadonly = element.hasAttribute('readonly') ||
-                          element.getAttribute('aria-readonly') === 'true';
+		// Check for readonly attribute
+		const isReadonly = element.hasAttribute('readonly') ||
+			element.getAttribute('aria-readonly') === 'true';
 
-        // For select, input, and textarea, check readonly attribute
-        if (element.tagName.toLowerCase() in {'select': 1, 'input': 1, 'textarea': 1}) {
-            return !isReadonly;
-        }
+		// For select, input, and textarea, check readonly attribute
+		if (element.tagName.toLowerCase() in { 'select': 1, 'input': 1, 'textarea': 1 }) {
+			return !isReadonly;
+		}
 
-        // Check contenteditable
-        if (element.hasAttribute('contenteditable') &&
-            element.getAttribute('contenteditable') !== 'false') {
-            return !isReadonly;
-        }
+		// Check contenteditable
+		if (element.hasAttribute('contenteditable') &&
+			element.getAttribute('contenteditable') !== 'false') {
+			return !isReadonly;
+		}
 
-        return false;
-    }
+		return false;
+	}
 
 	// Helper function to check if element is interactive
 	function isInteractiveElement(element) {
@@ -445,7 +461,7 @@
 			const isInteractive = isInteractiveElement(node);
 			const isVisible = isElementVisible(node);
 			const isTop = isTopElement(node);
-            const isEditable = isEditableElement(node);
+			const isEditable = isEditableElement(node);
 
 			nodeData.isInteractive = isInteractive;
 			nodeData.isVisible = isVisible;
@@ -453,8 +469,8 @@
 			nodeData.isEditable = isEditable;
 
 			// Highlight if element meets all criteria and highlighting is enabled
-			if (isInteractive && isVisible && isTop) {
-				nodeData.highlightIndex = highlightIndex++;
+			if (idGenerator.isInteractive(nodeData)) {
+				nodeData.highlightIndex = idGenerator.generateNextId(nodeData);
 				if (highlight_elements) {
 					if (focus_element >= 0) {
 						if (focus_element === nodeData.highlightIndex) {
@@ -507,7 +523,6 @@
 
 		return nodeData;
 	}
-
-
+	const idGenerator = new IdGenerator();
 	return buildDomTree(document.body);
 }

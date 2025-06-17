@@ -73,7 +73,9 @@ class PlaywrightManager(BaseModel, AsyncResource, BaseWindowManager, ABC):
             case BrowserType.CHROMIUM | BrowserType.CHROME:
                 return await self.playwright.chromium.connect_over_cdp(options.cdp_url)
             case BrowserType.FIREFOX:
-                return await self.playwright.firefox.connect(options.cdp_url)
+                # TODO: re-enable this later if we move away from patchright.
+                # return await self.playwright.firefox.connect(options.cdp_url)
+                raise NotImplementedError("Firefox over CDP is not supported on local agents.")
 
     @abstractmethod
     async def get_browser_resource(self, options: BrowserWindowOptions) -> BrowserResource:
