@@ -315,7 +315,7 @@ class ComputedDomAttributes:
     is_top_element: bool = False
     is_editable: bool = False
     shadow_root: bool = False
-    highlight_index: int | None = None
+    interactive_id: int | None = None
     selectors: NodeSelectors | None = None
 
     def set_selectors(self, selectors: NodeSelectors) -> None:

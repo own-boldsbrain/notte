@@ -25,7 +25,7 @@ class DomTreeDict(TypedDict):
     isInteractive: bool
     isTopElement: bool
     isEditable: bool
-    highlightIndex: int | None
+    interactiveId: int | None
     shadowRoot: bool
     children: list["DomTreeDict"]
 
@@ -91,7 +91,7 @@ class ParseDomTreePipe:
                 return None
             raise ValueError(f"Tag name is None for node: {node}")
 
-        highlight_index = node.get("highlightIndex")
+        interactive_id = node.get("interactiveId")
         shadow_root = node.get("shadowRoot", False)
         if xpath is None:
             raise ValueError(f"XPath is None for node: {node}")
@@ -99,7 +99,7 @@ class ParseDomTreePipe:
             tag_name=tag_name,
             xpath=xpath,
             attributes=attrs,
-            highlight_index=highlight_index,
+            interactive_id=interactive_id,
         )
         _iframe_parent_css_paths = iframe_parent_css_paths
         notte_selector = ":".join([notte_selector, str(hash(xpath)), str(hash(css_path))])
@@ -123,7 +123,7 @@ class ParseDomTreePipe:
             is_interactive=node.get("isInteractive", False),
             is_top_element=node.get("isTopElement", False),
             is_editable=node.get("isEditable", False),
-            highlight_index=node.get("highlightIndex"),
+            interactive_id=node.get("interactiveId"),
             shadow_root=shadow_root,
             in_shadow_root=in_shadow_root,
             parent=parent,

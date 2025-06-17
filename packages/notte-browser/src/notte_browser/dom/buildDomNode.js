@@ -470,14 +470,14 @@
 
 			// Highlight if element meets all criteria and highlighting is enabled
 			if (idGenerator.isInteractive(nodeData)) {
-				nodeData.highlightIndex = idGenerator.generateNextId(nodeData);
+				nodeData.interactiveId = idGenerator.generateNextId(nodeData);
 				if (highlight_elements) {
 					if (focus_element >= 0) {
-						if (focus_element === nodeData.highlightIndex) {
-							highlightElement(node, nodeData.highlightIndex, parentIframe);
+						if (focus_element === nodeData.interactiveId) {
+							highlightElement(node, nodeData.interactiveId, parentIframe);
 						}
 					} else {
-						highlightElement(node, nodeData.highlightIndex, parentIframe);
+						highlightElement(node, nodeData.interactiveId, parentIframe);
 					}
 				}
 			}

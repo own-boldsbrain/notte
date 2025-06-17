@@ -54,7 +54,7 @@ def build_csspath(
     tag_name: str,
     xpath: str,
     attributes: dict[str, str],
-    highlight_index: int | None,
+    interactive_id: int | None,
     include_dynamic_attributes: bool = True,
 ) -> str:
     """
@@ -152,4 +152,4 @@ def build_csspath(
 
     except Exception:
         # Fallback to a more basic selector if something goes wrong
-        return f"{tag_name}[highlight_index='{highlight_index}']"
+        return f"{tag_name}[interactive_id='{interactive_id}']"

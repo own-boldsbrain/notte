@@ -36,7 +36,7 @@ def cleanup_aria_attributes(attrs: dict[str, str]) -> dict[str, str]:
 class DOMBaseNode:
     parent: "DOMElementNode | None"
     is_visible: bool
-    highlight_index: int | None
+    interactive_id: int | None
     notte_id: str | None = field(init=False, default=None)
     children: list["DOMBaseNode"] = field(init=False, default_factory=list)
     # Use None as default and set parent later to avoid circular reference issues
@@ -64,12 +64,12 @@ class DOMBaseNode:
 class DOMTextNode(DOMBaseNode):
     text: str = ""
     type: str = "TEXT_NODE"
-    highlight_index: int | None = None
+    interactive_id: int | None = None
 
-    def has_parent_with_highlight_index(self) -> bool:
+    def has_parent_with_interactive_id(self) -> bool:
         current = self.parent
         while current is not None:
-            if current.highlight_index is not None:
+            if current.interactive_id is not None:
                 return True
             current = current.parent
         return False
@@ -155,8 +155,8 @@ class DOMElementNode(DOMBaseNode):
             extras.append("top")
         if self.shadow_root:
             extras.append("shadow-root")
-        if self.highlight_index is not None:
-            extras.append(f"highlight:{self.highlight_index}")
+        if self.interactive_id is not None:
+            extras.append(f"highlight:{self.interactive_id}")
 
         if extras:
             tag_str += f" [{', '.join(extras)}]"
@@ -448,7 +448,7 @@ class DOMElementNode(DOMBaseNode):
                 is_top_element=self.is_top_element,
                 is_editable=self.is_editable,
                 shadow_root=self.shadow_root,
-                highlight_index=self.highlight_index,
+                interactive_id=self.interactive_id,
                 selectors=NodeSelectors(
                     css_selector=self.css_path,
                     xpath_selector=self.xpath,
