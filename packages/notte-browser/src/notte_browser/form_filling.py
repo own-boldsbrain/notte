@@ -369,6 +369,9 @@ class FormFiller:
         Args:
             data: Dictionary containing form data with keys matching FIELD_SELECTORS
         """
+        import asyncio
+        import random
+
         filled_count = 0
         failed_fields: list[str] = []
 
@@ -388,6 +391,9 @@ class FormFiller:
                         await field.fill(value)
                     logger.debug(f"Successfully filled {field_type} field")
                     filled_count += 1
+
+                    # Add a random wait between 100ms and 500ms
+                    await asyncio.sleep(random.uniform(0.1, 0.5))
 
                 except Exception as e:
                     try:
@@ -410,6 +416,10 @@ class FormFiller:
                                     _ = await field.select_option(value=option["value"])
                                     logger.debug(f"Successfully filled {field_type} field (case-insensitive match)")
                                     filled_count += 1
+
+                                    # Add a random wait between 100ms and 500ms
+                                    await asyncio.sleep(random.uniform(0.1, 0.5))
+
                                     break
                             else:
                                 logger.warning(f"Failed to fill {field_type} field: No matching option found")
