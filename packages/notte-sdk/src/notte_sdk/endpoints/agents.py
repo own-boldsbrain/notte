@@ -63,6 +63,7 @@ class AgentStepResponse(BaseModel):
         for text, data in self.pretty_string(colors=colors):
             time.sleep(0.1)
             logger.opt(colors=True).info(text, **data)
+        logger.info("\n")
 
     def is_done(self) -> bool:
         # check for completion action
@@ -299,6 +300,7 @@ class AgentsClient(BaseClient):
                                 # termination condition
                                 return AgentStatusResponse.model_validate_json(message)
                             response = AgentStepResponse.model_validate_json(message)
+                            logger.opt(colors=True).info(f"<red>Step {counter + 1}</red>")
                             response.log_pretty_string()
                             counter += 1
                         except Exception as e:
