@@ -1,3 +1,6 @@
+import asyncio
+import random
+
 from loguru import logger
 from patchright.async_api import Locator, Page
 
@@ -16,14 +19,6 @@ def escape_css_selector(selector: str) -> str:
         else:
             result += char
     return result
-
-
-class FormTypes:
-    LOGIN: str = "login"
-    REGISTRATION: str = "registration"
-    IDENTITY: str = "identity"
-    CREDIT_CARD: str = "credit_card"
-    PASSWORD_CHANGE: str = "password_change"
 
 
 class FormFiller:
@@ -289,7 +284,7 @@ class FormFiller:
                         self._found_fields[field_type] = locator.first
                         return self._found_fields[field_type]
             except Exception as e:
-                print(f"Warning: Invalid selector {selector}: {str(e)}")
+                logger.warning(f"Warning: Invalid selector {selector}: {str(e)}")
                 continue
 
         # Try finding by label text
@@ -333,7 +328,7 @@ class FormFiller:
                                     return self._found_fields[field_type]
 
                         except Exception as e:
-                            print(f"Warning: Failed to find field for label with for={for_attr}: {str(e)}")
+                            logger.error(f"Warning: Failed to find field for label with for={for_attr}: {str(e)}")
                             continue
 
                     # If no 'for' attribute or not found, try finding the field as a child or sibling
@@ -354,11 +349,11 @@ class FormFiller:
                                 return self._found_fields[field_type]
 
                     except Exception as e:
-                        print(f"Warning: Failed to find related field for label: {str(e)}")
+                        logger.error(f"Warning: Failed to find related field for label: {str(e)}")
                         continue
 
         except Exception as e:
-            print(f"Warning: Error while searching by label: {str(e)}")
+            logger.error(f"Warning: Error while searching by label: {str(e)}")
 
         return None
 
@@ -369,8 +364,6 @@ class FormFiller:
         Args:
             data: Dictionary containing form data with keys matching FIELD_SELECTORS
         """
-        import asyncio
-        import random
 
         filled_count = 0
         failed_fields: list[str] = []
