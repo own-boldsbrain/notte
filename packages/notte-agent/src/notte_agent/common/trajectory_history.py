@@ -1,8 +1,8 @@
+from notte_browser.session import SessionTrajectoryStep
 from notte_core.actions import GotoAction
 from notte_core.browser.observation import Observation, TrajectoryProgress
 from pydantic import BaseModel, Field
 
-from notte_agent.common.safe_executor import ExecutionStatus
 from notte_agent.common.types import AgentStepResponse, AgentTrajectoryStep
 
 
@@ -49,28 +49,28 @@ THIS SHOULD BE THE LAST RESORT.
 
     def perceive_step_result(
         self,
-        result: ExecutionStatus,
+        step: SessionTrajectoryStep,
         include_ids: bool = False,
         include_data: bool = False,
     ) -> str:
         return self.perceive_execution_result(
-            result, include_ids=include_ids, include_data=include_data, max_error_length=self.max_error_length
+            step, include_ids=include_ids, include_data=include_data, max_error_length=self.max_error_length
         )
 
     @staticmethod
     def perceive_execution_result(
-        result: ExecutionStatus,
+        step: SessionTrajectoryStep,
         include_ids: bool = False,
         include_data: bool = False,
         max_error_length: int | None = None,
     ) -> str:
-        action = result.action
+        action = step.action
         id_str = f" with id={action.id}" if include_ids else ""
-        if not result.success:
-            err_msg = trim_message(result.message, max_error_length)
+        if not step.result.success:
+            err_msg = trim_message(step.result.message, max_error_length)
             return f"❌ action '{action.name()}'{id_str} failed with error: {err_msg}"
         success_msg = f"✅ action '{action.name()}'{id_str} succeeded: '{action.execution_message()}'"
-        data = result.get().data
+        data = step.result.data
         if include_data and data is not None and data.structured is not None and data.structured.data is not None:
             return f"{success_msg}\n\nExtracted JSON data:\n{data.structured.data.model_dump_json()}"
         return success_msg
@@ -102,7 +102,7 @@ THIS SHOULD BE THE LAST RESORT.
     def add_agent_response(self, output: AgentStepResponse) -> None:
         self.steps.append(AgentTrajectoryStep(agent_response=output, results=[]))
 
-    def add_step(self, step: ExecutionStatus) -> None:
+    def add_step(self, step: SessionTrajectoryStep) -> None:
         if len(self.steps) == 0:
             raise ValueError("Cannot add step to empty trajectory. Use `add_agent_response` first.")
         else:
@@ -118,6 +118,6 @@ THIS SHOULD BE THE LAST RESORT.
     def last_obs(self) -> Observation | None:
         for step in self.steps[::-1]:
             for step_result in step.results[::-1]:
-                if step_result.success:
+                if step_result.result.success:
                     return step_result.obs
         return None

@@ -188,10 +188,10 @@ class FalcoAgent(BaseAgent):
                     for result in step.results:
                         short_step_msg = self.trajectory.perceive_step_result(result, include_ids=True)
                         self.conv.add_user_message(content=short_step_msg)
-                        if not result.success:
+                        if not result.result.success:
                             continue
                         # add observation data to the conversation
-                        obs = result.get()
+                        obs = result.obs
                         match (self.config.history_type, obs.has_data()):
                             case (HistoryType.FULL_CONVERSATION, _):
                                 self.conv.add_user_message(
@@ -250,10 +250,13 @@ class FalcoAgent(BaseAgent):
 
             action_with_credentials = await self.action_with_credentials(action)
             result = await self.step_executor.execute(action_with_credentials)
-
             self.trajectory.add_step(result)
             step_msg = self.trajectory.perceive_step_result(result, include_ids=True)
             logger.info(f"{step_msg}\n\n")
+            if not result.result.success:
+                # stop the loop if the action failed
+                break
+
             # Successfully executed the action
         return None
 
@@ -314,8 +317,7 @@ class FalcoAgent(BaseAgent):
                 """
                 logger.error(failed_val_msg)
                 # add the validation result to the trajectory and continue
-                _ = self.session.step(action=output)
-                failed_step = await self.step_executor.on_failure(output, failed_val_msg)
+                failed_step = await self.step_executor.fail(output, failed_val_msg)
                 self.trajectory.add_step(failed_step)
 
         error_msg = f"Failed to solve task in {self.config.max_steps} steps"
