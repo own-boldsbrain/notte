@@ -52,8 +52,9 @@ enable_nest_asyncio()
 
 
 class SessionTrajectoryStep(BaseModel):
-    obs: Observation
     action: BaseAction
+    obs: Observation
+    result: StepResult | None = None
 
 
 class NotteSession(AsyncResource, SyncResource):
@@ -212,10 +213,6 @@ class NotteSession(AsyncResource, SyncResource):
         instructions: str | None = None,
         **pagination: Unpack[PaginationParamsDict],
     ) -> Observation:
-        # trigger exception at the begining of observe if no action is available
-        if self._action is None:
-            raise NoActionObservedError()
-        last_action = self._action
         # --------------------------------
         # ---------- Step 0: goto --------
         # --------------------------------
@@ -226,6 +223,11 @@ class NotteSession(AsyncResource, SyncResource):
         # --------------------------------
         # ------ Step 1: snapshot --------
         # --------------------------------
+
+        # trigger exception at the begining of observe if no action is available
+        if self._action is None:
+            raise NoActionObservedError()
+        last_action = self._action
 
         self._snapshot = await self.window.snapshot()
         if config.verbose:
