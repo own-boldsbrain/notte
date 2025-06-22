@@ -16,7 +16,6 @@ from notte_core.actions import (
     CaptchaSolveAction,
     CompletionAction,
 )
-from notte_core.browser.observation import StepResult
 from notte_core.common.config import NotteConfig, RaiseCondition
 from notte_core.common.tracer import LlmUsageDictTracer
 from notte_core.credentials.base import BaseVault, LocatorAttributes
@@ -27,7 +26,7 @@ from pydantic import field_validator
 
 from notte_agent.common.base import BaseAgent
 from notte_agent.common.conversation import Conversation
-from notte_agent.common.safe_executor import ExecutionStatus, SafeActionExecutor
+from notte_agent.common.safe_executor import SafeActionExecutor
 from notte_agent.common.trajectory_history import AgentTrajectoryHistory
 from notte_agent.common.types import AgentResponse, AgentStepResponse
 from notte_agent.common.validator import CompletionValidator
@@ -315,16 +314,9 @@ class FalcoAgent(BaseAgent):
                 """
                 logger.error(failed_val_msg)
                 # add the validation result to the trajectory and continue
-                self.trajectory.add_step(
-                    ExecutionStatus(
-                        action=output,
-                        obs=await self.session.aobserve(),
-                        result=StepResult(
-                            success=False,
-                            message=failed_val_msg,
-                        ),
-                    )
-                )
+                _ = self.session.step(action=output)
+                failed_step = await self.step_executor.on_failure(output, failed_val_msg)
+                self.trajectory.add_step(failed_step)
 
         error_msg = f"Failed to solve task in {self.config.max_steps} steps"
         logger.info(f"🚨 {error_msg}")

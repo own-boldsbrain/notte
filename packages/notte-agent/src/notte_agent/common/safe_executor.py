@@ -70,13 +70,14 @@ class SafeActionExecutor:
     def reset(self) -> None:
         self.consecutive_failures = 0
 
-    async def on_failure(self, action: BaseAction, error_msg: str, e: Exception) -> ExecutionStatus:
+    async def on_failure(self, action: BaseAction, error_msg: str, e: Exception | None = None) -> ExecutionStatus:
         self.consecutive_failures += 1
         if self.consecutive_failures >= self.max_consecutive_failures:
+            if e is None:
+                e = ValueError(error_msg)
             raise MaxConsecutiveFailuresError(self.max_consecutive_failures) from e
         if self.raise_on_failure:
             raise StepExecutionFailure(error_msg) from e
-
         obs = await self.session.aobserve()
         return ExecutionStatus(
             action=action,

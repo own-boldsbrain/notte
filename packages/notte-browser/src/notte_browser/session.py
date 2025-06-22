@@ -141,12 +141,6 @@ class NotteSession(AsyncResource, SyncResource):
         return self._snapshot
 
     @property
-    def action(self) -> BaseAction:
-        if self._action is None:
-            raise NoActionObservedError()
-        return self._action
-
-    @property
     def previous_interaction_actions(self) -> Sequence[InteractionAction] | None:
         # This function is always called after trajectory.append(preobs)
         # —This means trajectory[-1] is always the "current (pre)observation"
@@ -218,6 +212,10 @@ class NotteSession(AsyncResource, SyncResource):
         instructions: str | None = None,
         **pagination: Unpack[PaginationParamsDict],
     ) -> Observation:
+        # trigger exception at the begining of observe if no action is available
+        if self._action is None:
+            raise NoActionObservedError()
+        last_action = self._action
         # --------------------------------
         # ---------- Step 0: goto --------
         # --------------------------------
@@ -269,9 +267,9 @@ class NotteSession(AsyncResource, SyncResource):
 
         obs = Observation.from_snapshot(self._snapshot, space=space, data=data)
         # final step is to add obs, action pair to the trajectory and trigger the callback
-        self.trajectory.append(SessionTrajectoryStep(obs=obs, action=self.action))
+        self.trajectory.append(SessionTrajectoryStep(obs=obs, action=last_action))
         if self.act_callback is not None:
-            self.act_callback(self.action, obs)
+            self.act_callback(last_action, obs)
         return obs
 
     def observe(
