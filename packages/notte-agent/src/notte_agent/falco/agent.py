@@ -15,16 +15,14 @@ from notte_core.actions import (
     BaseAction,
     CaptchaSolveAction,
     CompletionAction,
-    FallbackObserveAction,
 )
-from notte_core.browser.observation import Observation
+from notte_core.browser.observation import StepResult
 from notte_core.common.config import NotteConfig, RaiseCondition
 from notte_core.common.tracer import LlmUsageDictTracer
 from notte_core.credentials.base import BaseVault, LocatorAttributes
 from notte_core.llms.engine import LLMEngine
 from notte_core.profiling import profiler
 from notte_sdk.types import AgentCreateRequest, AgentCreateRequestDict, AgentRunRequest, AgentRunRequestDict
-from patchright.async_api import Locator
 from pydantic import field_validator
 
 from notte_agent.common.base import BaseAgent
@@ -113,20 +111,7 @@ class FalcoAgent(BaseAgent):
         )
         self.trajectory: AgentTrajectoryHistory = AgentTrajectoryHistory(max_steps=self.config.max_steps)
         self.created_at: dt.datetime = dt.datetime.now()
-
-        async def execute_action(action: BaseAction) -> Observation:
-            if self.vault is not None and self.vault.contains_credentials(action):
-                locator = await self.session.locate(action)
-                if locator is not None:
-                    action = self.vault.replace_credentials(
-                        action,
-                        await FalcoAgent.compute_locator_attributes(locator),
-                        self.session.snapshot,
-                    )
-            _ = await self.session.astep(action)
-            return await self.session.aobserve()
-
-        self.step_executor: SafeActionExecutor[BaseAction, Observation] = SafeActionExecutor(func=execute_action)
+        self.step_executor: SafeActionExecutor = SafeActionExecutor(session=self.session)
 
     @property
     def validator(self) -> CompletionValidator:
@@ -138,12 +123,22 @@ class FalcoAgent(BaseAgent):
         )
         return self._validator
 
-    @staticmethod
-    async def compute_locator_attributes(locator: Locator) -> LocatorAttributes:
-        attr_type = await locator.get_attribute("type")
-        autocomplete = await locator.get_attribute("autocomplete")
-        outer_html = await locator.evaluate("el => el.outerHTML")
-        return LocatorAttributes(type=attr_type, autocomplete=autocomplete, outerHTML=outer_html)
+    async def action_with_credentials(self, action: BaseAction) -> BaseAction:
+        if self.vault is not None and self.vault.contains_credentials(action):
+            locator = await self.session.locate(action)
+            if locator is not None:
+                # compute locator attributes
+                attr_type = await locator.get_attribute("type")
+                autocomplete = await locator.get_attribute("autocomplete")
+                outer_html = await locator.evaluate("el => el.outerHTML")
+                attrs = LocatorAttributes(type=attr_type, autocomplete=autocomplete, outerHTML=outer_html)
+                # replace credentials
+                action = self.vault.replace_credentials(
+                    action,
+                    attrs,
+                    self.session.snapshot,
+                )
+        return action
 
     async def reset(self) -> None:
         self.conv.reset()
@@ -254,28 +249,12 @@ class FalcoAgent(BaseAgent):
                     answer=f"Agent encountered {action.captcha_type} captcha but session doesnt solve captchas: create a session with solve_captchas=True",
                 )
 
-            result = await self.step_executor.execute(action)
+            action_with_credentials = await self.action_with_credentials(action)
+            result = await self.step_executor.execute(action_with_credentials)
 
             self.trajectory.add_step(result)
             step_msg = self.trajectory.perceive_step_result(result, include_ids=True)
             logger.info(f"{step_msg}\n\n")
-            if not result.success:
-                # observe again
-                obs = await self.session.aobserve()
-
-                # cast is necessary because we cant have covariance
-                # in ExecutionStatus
-                ex_status = ExecutionStatus(
-                    input=typing.cast(BaseAction, FallbackObserveAction()),
-                    output=obs,
-                    success=True,
-                    message="Observed",
-                )
-                self.trajectory.add_agent_response(response)
-                self.trajectory.add_step(ex_status)
-
-                # stop the loop
-                break
             # Successfully executed the action
         return None
 
@@ -338,10 +317,12 @@ class FalcoAgent(BaseAgent):
                 # add the validation result to the trajectory and continue
                 self.trajectory.add_step(
                     ExecutionStatus(
-                        input=output,
-                        output=None,
-                        success=False,
-                        message=failed_val_msg,
+                        action=output,
+                        obs=await self.session.aobserve(),
+                        result=StepResult(
+                            success=False,
+                            message=failed_val_msg,
+                        ),
                     )
                 )
 

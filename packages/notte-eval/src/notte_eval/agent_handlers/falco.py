@@ -226,7 +226,7 @@ class FalcoBench(AgentBenchmark[FalcoInput, FalcoOutput]):
         steps: list[str] = []
         for step in agent_output.trajectory:
             for result in step.results:
-                action = result.input
+                action = result.action
                 action_name = f"{action.__class__.__name__}.model_validate({action.model_dump_json()})".replace(
                     "true", "True"
                 ).replace("false", "False")

@@ -87,10 +87,10 @@ class AgentStepResponse(BaseModel):
 
 class AgentTrajectoryStep(BaseModel):
     agent_response: AgentStepResponse
-    results: list[ExecutionStatus[BaseAction, Observation]]
+    results: list[ExecutionStatus]
 
     def observations(self) -> list[Observation]:
-        return [result.output for result in self.results if result.output is not None]
+        return [result.obs for result in self.results]
 
 
 class AgentResponse(BaseModel):
@@ -135,8 +135,8 @@ class AgentResponse(BaseModel):
 
         for step in self.trajectory:
             for result in step.results:
-                if result.output is not None and result.output.screenshot is not None:
-                    screenshots.append(result.output.screenshot)
+                if result.obs.screenshot is not None:
+                    screenshots.append(result.obs.screenshot)
                     texts.append(step.agent_response.state.next_goal)
 
         if len(screenshots) == 0:
