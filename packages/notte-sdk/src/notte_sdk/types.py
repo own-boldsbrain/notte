@@ -1199,7 +1199,6 @@ class ObserveResponse(Observation):
         return ObserveResponse(
             metadata=obs.metadata,
             space=obs.space,
-            data=obs.data,
             progress=obs.progress,
             screenshot=obs.screenshot,
             session=session,

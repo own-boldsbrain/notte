@@ -25,7 +25,6 @@ class Observation(BaseModel):
         bytes | None, Field(description="Base64 encoded screenshot of the current page", repr=False)
     ] = None
     space: Annotated[ActionSpace, Field(description="Available actions in the current state")]
-    data: Annotated[DataSpace | None, Field(description="Scraped data from the page")] = None
     progress: Annotated[
         TrajectoryProgress | None, Field(description="Progress of the current trajectory (i.e number of steps)")
     ] = None
@@ -47,9 +46,6 @@ class Observation(BaseModel):
     def clean_url(self) -> str:
         return clean_url(self.metadata.url)
 
-    def has_data(self) -> bool:
-        return self.data is not None
-
     def display_screenshot(self) -> "Image.Image | None":
         from notte_core.utils.image import image_from_bytes
 
@@ -61,14 +57,12 @@ class Observation(BaseModel):
     def from_snapshot(
         snapshot: BrowserSnapshot,
         space: ActionSpace,
-        data: DataSpace | None = None,
         progress: TrajectoryProgress | None = None,
     ) -> "Observation":
         return Observation(
             metadata=snapshot.metadata,
             screenshot=snapshot.screenshot,
             space=space,
-            data=data,
             progress=progress,
         )
 

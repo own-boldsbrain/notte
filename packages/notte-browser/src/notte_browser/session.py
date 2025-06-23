@@ -84,7 +84,6 @@ class NotteSession(AsyncResource, SyncResource):
         self._snapshot: BrowserSnapshot | None = None
         self._action: BaseAction | None = None
         self._action_result: StepResult | None = None
-        self._scraped_data: DataSpace | None = None
 
         self.act_callback: Callable[[BaseAction, Observation], None] | None = act_callback
 
@@ -94,7 +93,6 @@ class NotteSession(AsyncResource, SyncResource):
             {
                 "config": {
                     "perception_model": config.perception_model,
-                    "auto_scrape": config.auto_scrape,
                     "headless": self._request.headless,
                 }
             },
@@ -247,7 +245,7 @@ class NotteSession(AsyncResource, SyncResource):
             retry=self.observe_max_retry_after_snapshot_update,
         )
         if instructions is not None:
-            obs = Observation.from_snapshot(self._snapshot, space=space, data=self._scraped_data)
+            obs = Observation.from_snapshot(self._snapshot, space=space)
             selected_actions = await self._action_selection_pipe.forward(obs, instructions=instructions)
             if not selected_actions.success:
                 logger.warning(f"❌ Action selection failed: {selected_actions.reason}. Space will be empty.")
@@ -256,22 +254,10 @@ class NotteSession(AsyncResource, SyncResource):
                 space = space.filter([a.action_id for a in selected_actions.actions])
 
         # --------------------------------
-        # ----- Step 2: scraped data -----
-        # --------------------------------
-
-        # forward data from scraping pipe if scraped was the last action
-        data = self._scraped_data
-        # check auto scrape
-        if config.auto_scrape and data is None and space.category is not None and space.category.is_data():
-            if config.verbose:
-                logger.info(f"🛺 Autoscrape enabled and page is {space.category}. Scraping page...")
-            data = await self.ascrape()
-
-        # --------------------------------
         # ------- Step 3: tracing --------
         # --------------------------------
 
-        obs = Observation.from_snapshot(self._snapshot, space=space, data=data)
+        obs = Observation.from_snapshot(self._snapshot, space=space)
         # final step is to add obs, action pair to the trajectory and trigger the callback
         self.trajectory.append(SessionTrajectoryStep(obs=obs, action=last_action, result=last_action_result))
         if self.act_callback is not None:
@@ -318,13 +304,13 @@ class NotteSession(AsyncResource, SyncResource):
 
         message = self._action.execution_message()
         exception: Exception | None = None
+        scraped_data = None
         try:
             if isinstance(self._action, ScrapeAction):
                 # Scrape action is a special case
-                self._scraped_data = await self.ascrape(instructions=self._action.instructions)
+                scraped_data = await self.ascrape(instructions=self._action.instructions)
                 success = True
             else:
-                self._scraped_data = None
                 success = await self.controller.execute(self.window, self._action)
         except RateLimitError as e:
             success = False
@@ -361,7 +347,7 @@ class NotteSession(AsyncResource, SyncResource):
         self._action_result = StepResult(
             success=success,
             message=message,
-            data=self._scraped_data,
+            data=scraped_data,
             exception=exception,
         )
         return self._action_result
@@ -394,7 +380,6 @@ class NotteSession(AsyncResource, SyncResource):
             logger.info("🌊 Resetting environment...")
         self.trajectory = []
         self._snapshot = None
-        self._scraped_data = None
         self._action = None
         # reset the window
         await super().areset()
@@ -410,6 +395,5 @@ class NotteSession(AsyncResource, SyncResource):
             raise ValueError("Session already has an act callback")
         self.trajectory = session.trajectory
         self._snapshot = session._snapshot
-        self._scraped_data = session._scraped_data
         self._action = session._action
         self.act_callback = session.act_callback
