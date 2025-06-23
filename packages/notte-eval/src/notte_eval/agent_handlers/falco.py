@@ -158,14 +158,13 @@ class FalcoBench(AgentBenchmark[FalcoInput, FalcoOutput]):
         screenshots: list[bytes] = []
         for (step, in_step_calls), hist in zip(out.per_step_calls, out.output.trajectory):
             last_url = ""
-            for res in hist.results:
-                if res.result.success:
-                    obs = res.obs
-                    screen = obs.screenshot
-                    if screen is not None:
-                        screenshots.append(screen)
+            if hist.result.success:
+                obs = hist.obs
+                screen = obs.screenshot
+                if screen is not None:
+                    screenshots.append(screen)
 
-                    last_url = obs.metadata.url
+                last_url = obs.metadata.url
 
             llm_calls: list[LLMCall] = []
             llm_calls_logs = in_step_calls["LLMEngine.completion"]
@@ -225,12 +224,11 @@ class FalcoBench(AgentBenchmark[FalcoInput, FalcoOutput]):
         LINE_TAG = "obs = await env.raw_step({action_name})"
         steps: list[str] = []
         for step in agent_output.trajectory:
-            for result in step.results:
-                action = result.action
-                action_name = f"{action.__class__.__name__}.model_validate({action.model_dump_json()})".replace(
-                    "true", "True"
-                ).replace("false", "False")
-                steps.append(LINE_TAG.format(action_name=action_name))
+            action = step.action
+            action_name = f"{action.__class__.__name__}.model_validate({action.model_dump_json()})".replace(
+                "true", "True"
+            ).replace("false", "False")
+            steps.append(LINE_TAG.format(action_name=action_name))
 
         replay_steps = "\n".join(steps)
         return replay_steps
