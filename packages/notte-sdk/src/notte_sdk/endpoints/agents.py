@@ -94,7 +94,7 @@ class AgentsClient(BaseClient):
     # Session
     AGENT_START = "start"
     AGENT_START_CUSTOM = "start/custom"
-    AGENT_STOP = "{agent_id}/stop"
+    AGENT_STOP = "{agent_id}/stop?session_id={session_id}"
     AGENT_STATUS = "{agent_id}"
     AGENT_LIST = ""
     # The following endpoints downloads a .webp file
@@ -134,7 +134,7 @@ class AgentsClient(BaseClient):
         return NotteEndpoint(path=AgentsClient.AGENT_START_CUSTOM, response=AgentResponse, method="POST")
 
     @staticmethod
-    def agent_stop_endpoint(agent_id: str | None = None) -> NotteEndpoint[AgentResponse]:
+    def agent_stop_endpoint(agent_id: str | None = None, session_id: str | None = None) -> NotteEndpoint[AgentResponse]:
         """
         Constructs a DELETE endpoint for stopping an agent.
 
@@ -150,7 +150,7 @@ class AgentsClient(BaseClient):
         """
         path = AgentsClient.AGENT_STOP
         if agent_id is not None:
-            path = path.format(agent_id=agent_id)
+            path = path.format(agent_id=agent_id, session_id=session_id)
         return NotteEndpoint(path=path, response=AgentStatusResponse, method="DELETE")
 
     @staticmethod
@@ -358,7 +358,7 @@ class AgentsClient(BaseClient):
         logger.error(f"[Agent] {agent_id} failed to complete in time. Try runnig `agent.status()` after a few seconds.")
         return self.status(agent_id=agent_id)
 
-    def stop(self, agent_id: str) -> AgentResponse:
+    def stop(self, agent_id: str, session_id: str) -> AgentResponse:
         """
         Stops the specified agent and clears the last agent response.
 
@@ -375,7 +375,7 @@ class AgentsClient(BaseClient):
         Raises:
             ValueError: If a valid agent identifier cannot be determined.
         """
-        endpoint = AgentsClient.agent_stop_endpoint(agent_id=agent_id)
+        endpoint = AgentsClient.agent_stop_endpoint(agent_id=agent_id, session_id=session_id)
         response = self.request(endpoint)
         return response
 
@@ -752,7 +752,7 @@ class RemoteAgent:
         """
         Stop the agent.
         """
-        return self.client.stop(agent_id=self.agent_id)
+        return self.client.stop(agent_id=self.agent_id, session_id=self.session_id)
 
     def run(self, **data: Unpack[AgentRunRequestDict]) -> AgentStatusResponse:
         """
