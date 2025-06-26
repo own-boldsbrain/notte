@@ -11,7 +11,7 @@ def task():
 
 
 def test_falco_agent(task: str):
-    with notte.Session(headless=False) as session:
+    with notte.Session() as session:
         agent = notte.Agent(session=session, agent_type=AgentType.FALCO, max_steps=5)
         assert agent is not None
         response = agent.run(task=task)
@@ -23,7 +23,7 @@ def test_falco_agent(task: str):
 
 @pytest.mark.skip("Renable that later on when we fix the gufo agent")
 def test_gufo_agent(task: str):
-    with notte.Session(headless=False) as session:
+    with notte.Session() as session:
         agent = notte.Agent(session=session, agent_type=AgentType.GUFO, max_steps=5)
         assert agent is not None
         response = agent.run(task=task)
@@ -34,7 +34,7 @@ def test_gufo_agent(task: str):
 
 
 def test_falco_agent_external_model(task: str):
-    with notte.Session(headless=False) as session:
+    with notte.Session() as session:
         agent = notte.Agent(session=session, agent_type=AgentType.FALCO, max_steps=1)
         assert agent is not None
         response = agent.run(task=task)
@@ -44,7 +44,7 @@ def test_falco_agent_external_model(task: str):
 
 
 def test_falco_agent_invalid_external_model_should_fail(task: str):
-    with notte.Session(headless=False) as session:
+    with notte.Session() as session:
         with pytest.raises(ValidationError):
             agent = notte.Agent(
                 session=session, agent_type=AgentType.FALCO, max_steps=2, reasoning_model="notavalid/gpt-4o-mini"

@@ -19,7 +19,7 @@ def test_vault_in_local_agent():
         email="xyz@notte.cc",
         password="xyz",
     )
-    with notte.Session(headless=False) as session:
+    with notte.Session() as session:
         agent = notte.Agent(session=session, vault=vault, max_steps=5)
         _ = agent.run(task="Go to the github.com and try to login with the credentials")
 

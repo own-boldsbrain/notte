@@ -116,7 +116,7 @@ def test_ge(output_ge: str, json_schema: dict[Any, Any]):
 
 
 def test_agent_with_schema():
-    with notte.Session(headless=False) as session:
+    with notte.Session() as session:
         agent = notte.Agent(session=session)
         valid = agent.run(
             task='CRITICAL: dont do anything, return a completion action directly with output {"name": "my name", "price": -3}. You are allowed to shift the price if it fails.',
@@ -127,7 +127,7 @@ def test_agent_with_schema():
 
 
 def test_agent_with_output():
-    with notte.Session(headless=False) as session:
+    with notte.Session() as session:
         agent = notte.Agent(session=session)
         valid = agent.run(
             task='CRITICAL: dont do anything, return a completion action directly with output {"name": "my name", "price": -3}. You are allowed to shift the price if it fails.',
