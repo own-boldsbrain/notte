@@ -37,7 +37,7 @@ Notte provides the full-stack web AI agents framework that allows you to develop
 ### 🚀 Zero Friction Agentic Browsing
 
 ```
-notte.Agent().run(task="go to twitter and post: new era this is @nottecore taking over my acc")
+notte.Agent(session).run(task="go to twitter and post: new era this is @nottecore taking over my acc")
 ```
 
 <p align="center">
