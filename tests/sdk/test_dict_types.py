@@ -40,8 +40,6 @@ from notte_sdk.types import (
     SdkAgentCreateRequestDict,
     SessionListRequest,
     SessionListRequestDict,
-    SessionRequest,
-    SessionRequestDict,
     SessionResponse,
     SessionResponseDict,
     SessionStartRequest,
@@ -111,10 +109,6 @@ def test_agent_run_request_dict_alignment():
 
 def test_agent_status_request_dict_alignment():
     _test_request_dict_alignment(AgentStatusRequest, AgentStatusRequestDict)
-
-
-def test_session_request_dict_alignment():
-    _test_request_dict_alignment(SessionRequest, SessionRequestDict)
 
 
 def test_session_start_request_dict_alignment():
