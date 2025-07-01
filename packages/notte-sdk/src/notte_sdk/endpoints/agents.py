@@ -259,9 +259,10 @@ class AgentsClient(BaseClient):
             counter = 0
             async with websockets.client.connect(
                 uri=wss_url,
-                ping_interval=5,
-                ping_timeout=40,
-                close_timeout=5,
+                ping_interval=20,
+                open_timeout=60,
+                ping_timeout=60,
+                close_timeout=60,
             ) as websocket:
                 try:
                     async for message in websocket:
