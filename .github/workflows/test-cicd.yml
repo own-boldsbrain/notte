@@ -6,9 +6,9 @@ on:
       - main
   # Uncommend this if you want to see the updated Workflow your branch
   # But make sure to comment it out again before merging
-  # pull_request:
-  #   branches:
-  #     - main
+  pull_request:
+    branches:
+      - main
   pull_request_target:
     types: [opened, synchronize, reopened]
   workflow_dispatch:
@@ -32,7 +32,23 @@ permissions:
 jobs:
   tests:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    strategy:
+      matrix:
+        test_path:
+          - tests/actions
+          - tests/agent
+          - tests/browser
+          - tests/code
+          - tests/config
+          - tests/examples
+          - tests/integration
+          - tests/llms
+          - tests/mcp
+          - tests/pipe
+          - tests/sdk
+          - tests/utils
+          - tests/test_session.py
+          # (add any other root-level test files you want)
     steps:
       - name: Checkout code (manual trigger)
         if: github.event_name == 'workflow_dispatch'
@@ -114,10 +130,14 @@ jobs:
           fi
           echo "Environment variables are set"
 
-      - name: Run unit tests
+      - name: Run tests in ${{ matrix.test_path }}
         run: |
-          set -o pipefail
-          uv run pytest tests --ignore=tests/integration/test_webvoyager_resolution.py --ignore=tests/integration/test_e2e.py --ignore=tests/examples/test_examples.py --ignore=tests/examples/test_readme.py --durations=10 --junitxml=pytest.xml --cov-report=term-missing:skip-covered --cov=packages | tee pytest-coverage.txt
+          uv run pytest ${{ matrix.test_path }} \
+            --ignore=tests/integration/test_webvoyager_resolution.py \
+            --ignore=tests/integration/test_e2e.py \
+            --ignore=tests/examples/test_examples.py \
+            --ignore=tests/examples/test_readme.py \
+            --durations=10 --junitxml=pytest-${{ matrix.test_path }}.xml --cov-report=term-missing:skip-covered --cov=packages
 
       - name: Pytest coverage comment
         if: ${{ always() && github.ref != 'refs/heads/main' }}
