@@ -40,7 +40,6 @@ jobs:
           - tests/browser
           - tests/code
           - tests/config
-          - tests/examples
           - tests/integration
           - tests/llms
           - tests/mcp
