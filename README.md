@@ -36,30 +36,16 @@ Our full-stack web AI agents framework allows you to develop, deploy, and scale 
 - **[Page interactions](https://docs.notte.cc/side/fullstack/page_interactions)** → observe website states and execute actions using intuitive natural language commands — granular control while maintaining the simplicity of natural language interaction
 - **[Secrets Vault](https://docs.notte.cc/side/fullstack/vault)** → enterprise-grade credential management for your Sessions & Agents
 
-# Quickstart me
+# Quickstart
 
-We provide an easy to use API with our hosted version.
+We provide an effortless hosted API.
 
-To run the above you'll need to sign up on the [notte console](https://console.notte.cc) and create a free notte API key 🔑
+To run the agent you'll need to sign up on the [notte console](https://console.notte.cc), create a free notte API key 🔑, and add `NOTTE_API_KEY` as an environment variable. Make sure you have `uv` installed. Then, just run the script below!
 
 ```bash
-uv venv --python 3.11
-source .venv/bin/activate
-uv pip install notte-sdk
+curl -s https://raw.githubusercontent.com/nottelabs/notte/main/quickstart.sh | bash
 ```
 
-And spin up your crazy cool and dead simple agent on our remote machine:
-
-```python
-import os
-from notte_sdk import NotteClient
-
-client = NotteClient(api_key=os.getenv("NOTTE_API_KEY"))
-
-with client.Session(headless=False) as session:
-    agent = client.Agent(reasoning_model="gemini/gemini-2.0-flash", max_steps=5, session=session)
-    response = agent.run(task="doom scroll cat memes on google images")
-```
 
 ---
 
