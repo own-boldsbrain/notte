@@ -6,11 +6,11 @@ from typing import Annotated, Any, Callable, TypeVar, Unpack, final
 
 import markdownify  # type: ignore[import]
 from loguru import logger
-from notte_core.actions import EmailReadAction, ToolAction
+from notte_core.actions import EmailReadAction, SMSReadAction, ToolAction
 from notte_core.browser.observation import StepResult
 from notte_core.data.space import DataSpace
 from notte_sdk.endpoints.personas import Persona
-from notte_sdk.types import EmailResponse
+from notte_sdk.types import EmailResponse, SMSResponse
 from pydantic import BaseModel, Field
 from typing_extensions import override
 
@@ -78,6 +78,16 @@ class ListEmailResponse(BaseModel):
     emails: list[SimpleEmailResponse]
 
 
+class SimpleSMSResponse(BaseModel):
+    body: Annotated[str, Field(description="The body of the SMS message")]
+    created_at: Annotated[dt.datetime, Field(description="The date and time the SMS was sent")]
+    sender: Annotated[str, Field(description="The phone number of the sender")]
+
+
+class ListSMSResponse(BaseModel):
+    sms_messages: list[SimpleSMSResponse]
+
+
 # #########################################################
 # #################### PERSONA TOOLS ######################
 # #########################################################
@@ -108,7 +118,7 @@ EMAIL HANDLING MODULE
 =====================
 
 Some websites require you to read emails to retrieve sign-in codes/links, 2FA codes or simply to check the inbox.
-Use the {EmailReadAction.name()} action to read emails from the inbox.
+Use the {EmailReadAction.name()} action to read emails from the inbox and the {SMSReadAction.name()} action to read SMS from the phone.
 """
 
     @BaseTool.register(EmailReadAction)
@@ -152,4 +162,44 @@ Use the {EmailReadAction.name()} action to read emails from the inbox.
             success=True,
             message=f"Successfully read {len(emails)} emails from the inbox {time_str}",
             data=DataSpace.from_structured(ListEmailResponse(emails=emails)),
+        )
+
+    @BaseTool.register(SMSReadAction)
+    def read_sms(self, action: SMSReadAction) -> StepResult:
+        # TODO check if phone number is set and raise error if no
+        raw_sms: Sequence[SMSResponse] = []
+        time_str = f"in the last {action.timedelta}" if action.timedelta is not None else ""
+        for _ in range(self.nb_retries):
+            raw_sms = self.persona.sms(
+                only_unread=action.only_unread,
+                timedelta=action.timedelta,
+                limit=action.limit,
+            )
+            if len(raw_sms) > 0:
+                break
+            # if we have not found any SMS messages, we wait for 5 seconds and retry
+            logger.warning(
+                f"No SMS messages found {time_str}, waiting for 5 seconds and retrying {self.nb_retries} times"
+            )
+            time.sleep(5)
+
+        if len(raw_sms) == 0:
+            return StepResult(
+                success=True,
+                message=f"No SMS messages found {time_str}",
+                data=DataSpace.from_structured(ListSMSResponse(sms_messages=[])),
+            )
+        sms_messages: list[SimpleSMSResponse] = []
+        for sms in raw_sms:
+            sms_messages.append(
+                SimpleSMSResponse(
+                    body=sms.body,
+                    created_at=sms.created_at,
+                    sender=sms.sender or "unknown",
+                )
+            )
+        return StepResult(
+            success=True,
+            message=f"Successfully read {len(sms_messages)} SMS messages {time_str}",
+            data=DataSpace.from_structured(ListSMSResponse(sms_messages=sms_messages)),
         )

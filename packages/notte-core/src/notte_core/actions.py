@@ -661,6 +661,36 @@ class EmailReadAction(ToolAction):
         return ActionParameter(name="timedelta", type="datetime")
 
 
+class SMSReadAction(ToolAction):
+    type: Literal["sms_read"] = "sms_read"  # pyright: ignore [reportIncompatibleVariableOverride]
+    description: str = "Read SMS from the phone."
+    limit: Annotated[int, Field(description="Max number of SMS to return")] = 10
+    timedelta: Annotated[
+        dt.timedelta | None, Field(description="Return only SMS that are not older than <timedelta>")
+    ] = dt.timedelta(minutes=5)
+    only_unread: Annotated[bool, Field(description="Return only previously unread SMS")] = True
+
+    @override
+    def execution_message(self) -> str:
+        if self.timedelta is None:
+            return "Successfully read SMS from the phone"
+        else:
+            return f"Successfully read SMS from the phone in the last {self.timedelta}"
+
+    @override
+    @staticmethod
+    def example() -> "SMSReadAction":
+        return SMSReadAction(
+            timedelta=dt.timedelta(minutes=5),
+            only_unread=True,
+        )
+
+    @property
+    @override
+    def param(self) -> ActionParameter | None:
+        return ActionParameter(name="timedelta", type="datetime")
+
+
 # ############################################################
 # Interaction actions models
 # ############################################################
