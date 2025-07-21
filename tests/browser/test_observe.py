@@ -29,11 +29,11 @@ SNAPSHOT_DIR_TRAJECTORY: Final[Path] = DOM_REPORTS_DIR / Path('trajectory_' + dt
 # -----------------------------------------------------------------------------
 
 
-def urls() -> list[str]:
+def test_cases() -> list[tuple[str, str]]:
     return [
-        "https://allrecipes.com",
-        "https://x.com",
-        "https://www.ubereats.com",
+        ("https://allrecipes.com", "click on the first recipe"),
+        ("https://x.com", "click on the first tweet"),
+        ("https://www.ubereats.com", "click on the first restaurant"),
         # "https://www.google.com",
         # "https://www.google.com/flights",
         # "https://www.google.com/maps",
@@ -280,13 +280,11 @@ def save_snapshot_trajectory(url: str, task: str) -> None:
             save_snapshot(curr_step_dir, session, url)
 
 
-@pytest.mark.parametrize("url", urls())
-def test_observe_snapshot(url: str) -> None:
+@pytest.mark.parametrize("url, task", [
+    (url, task) for url, task in test_cases()
+])
+def test_observe_snapshot(url: str, task: str) -> None:
     """Validate that current browser_snapshot HTML files match stored JSON snapshots."""
     # TODO move ts
     save_snapshot_static(url)
-
-    # actual = dump_interaction_nodes(session)
-    # expected = json.loads(json_path.read_text(encoding="utf-8"))
-    # if actual != expected:
-    #    raise AssertionError(f"Data snapshot mismatch for {name}")
+    save_snapshot_trajectory(url, task)
