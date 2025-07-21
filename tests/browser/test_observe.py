@@ -223,7 +223,7 @@ def save_snapshot(save_dir: Path, session: notte.Session, url: str) -> None:
         json.dump([], fp, indent=2, ensure_ascii=False)
 
 
-def save_snapshot_static(url: str) -> None:
+def save_single_snapshot_static(url: str) -> None:
     _ = SNAPSHOT_DIR_STATIC.mkdir(parents=True, exist_ok=True)
 
     parsed = urlparse(url)
@@ -243,7 +243,7 @@ def save_snapshot_static(url: str) -> None:
         save_snapshot(save_dir=save_dir, session=session, url=url)
 
 
-def save_snapshot_trajectory(url: str, task: str) -> None:
+def save_single_snapshot_trajectory(url: str, task: str) -> None:
     _ = SNAPSHOT_DIR_TRAJECTORY.mkdir(parents=True, exist_ok=True)
 
     parsed = urlparse(url)
@@ -280,11 +280,21 @@ def save_snapshot_trajectory(url: str, task: str) -> None:
             save_snapshot(curr_step_dir, session, url)
 
 
+def save_snapshot_static(urls: list[str]) -> None:
+    for url in urls:
+        save_single_snapshot_static(url)
+
+
+def save_snapshot_trajectory(urls: list[str], tasks: list[str]) -> None:
+    for url, task in zip(urls, tasks):
+        save_single_snapshot_trajectory(url, task)
+
+
 @pytest.mark.parametrize("url, task", [
     (url, task) for url, task in test_cases()
 ])
 def test_observe_snapshot(url: str, task: str) -> None:
     """Validate that current browser_snapshot HTML files match stored JSON snapshots."""
     # TODO move ts
-    save_snapshot_static(url)
-    save_snapshot_trajectory(url, task)
+    save_single_snapshot_static(url)
+    save_single_snapshot_trajectory(url, task)
