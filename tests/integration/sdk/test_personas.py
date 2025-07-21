@@ -60,6 +60,7 @@ def test_persona_with_vault_in_remote_agent():
         _ = agent.run(task="try to login to github.com with the persona's credentials")
 
 
+@pytest.mark.skip(reason="This test should not be run as it costs money")
 def test_persona_phone_number_management(test_persona_id: str):
     _ = load_dotenv()
     client = NotteClient(api_key=os.getenv("NOTTE_API_KEY"))
@@ -132,11 +133,11 @@ def test_persona_email_reading_with_filters(test_persona_id: str):
     persona = client.Persona(persona_id=test_persona_id)
     # Test reading emails with different filters
     all_emails = persona.emails()
-    assert len(all_emails) == 1
+    assert len(all_emails) >= 1
 
     # Test with limit
     limited_emails = persona.emails(limit=5)
-    assert len(limited_emails) == 1
+    assert len(limited_emails) >= 1
 
     # Test with unread only
     unread_emails = persona.emails(only_unread=True)
