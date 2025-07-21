@@ -504,7 +504,7 @@ def save_snapshot_static(
     return save_dir
 
 
-def save_snapshot_trajectory(url: str, task: str) -> None:
+def save_single_snapshot_trajectory(url: str, task: str) -> None:
     _ = SNAPSHOT_DIR_TRAJECTORY.mkdir(parents=True, exist_ok=True)
 
     # Create a fresh Notte session for each page to avoid side-effects.
@@ -528,6 +528,11 @@ def save_snapshot_trajectory(url: str, task: str) -> None:
         for i, obs in enumerate(obs_list):
             save_dir = get_snapshot_dir(url, sub_dir=f"trajectory/step_{i}")
             save_snapshot(save_dir, session, obs.metadata.url)
+
+
+def save_snapshot_trajectory(urls: list[str], tasks: list[str]) -> None:
+    for url, task in zip(urls, tasks):
+        save_single_snapshot_trajectory(url, task)
 
 
 # @pytest.mark.skip(reason="Run this test to generate new snapshots")
@@ -559,10 +564,3 @@ def test_compare_observe_snapshot(url: str) -> None:
     static_nodes = json.loads((static_dir / "nodes.json").read_text(encoding="utf-8"))
     live_nodes = json.loads((live_dir / "nodes.json").read_text(encoding="utf-8"))
     compare_nodes(static_nodes, live_nodes)
-
-    # compare static and live
-
-    # actual = dump_interaction_nodes(session)
-    # expected = json.loads(json_path.read_text(encoding="utf-8"))
-    # if actual != expected:
-    #    raise AssertionError(f"Data snapshot mismatch for {name}")
