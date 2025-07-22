@@ -7,6 +7,7 @@ from notte_agent.falco.agent import FalcoAgent
 from notte_core.actions import FillAction, FormFillAction, WaitAction
 from notte_core.credentials.base import BaseVault, CredentialField, EmailField, PasswordField
 from notte_core.credentials.types import ValueWithPlaceholder, get_str_value
+from notte_core.errors.actions import NoCredentialsFoundError
 from notte_sdk import NotteClient
 from notte_sdk.errors import NotteAPIError
 
@@ -49,7 +50,7 @@ async def test_vault_replace_form_fill():
         # not strictly necessary, but we need a snapshot
         file_path = "tests/data/github_signin.html"
         _ = await session.window.page.goto(url=f"file://{os.path.abspath(file_path)}")
-        res = await session.astep(WaitAction(time_ms=100))
+        res = await session.aexecute(WaitAction(time_ms=100))
         assert res.success
         _ = await session.aobserve()
         session.snapshot.metadata.url = URL
@@ -88,7 +89,7 @@ async def test_vault_replace_fill():
         file_path = "tests/data/github_signin.html"
         _ = await session.window.page.goto(url=f"file://{os.path.abspath(file_path)}")
 
-        res = await session.astep(WaitAction(time_ms=100))
+        res = await session.aexecute(WaitAction(time_ms=100))
         assert res.success
         _ = await session.aobserve()
         session.snapshot.metadata.url = URL
@@ -122,7 +123,7 @@ def test_vault_in_remote_agent():
 
     client = NotteClient()
     # Create a new secure vault
-    with client.vaults.create() as vault, client.Session(headless=False) as session:
+    with client.vaults.create() as vault, client.Session(headless=True) as session:
         # Add your credentials securely
         _ = vault.add_credentials(
             url="https://github.com/",
@@ -197,3 +198,13 @@ def test_add_correct_otp():
             password="xyz",  # pragma: allowlist secret
             mfa_secret="mysecret",  # pragma: allowlist secret
         )
+
+
+def test_invalid_credentials_in_local_agent():
+    client = NotteClient()
+
+    # storage = notte.FileStorage()
+    with client.Vault() as vault, notte.Session() as session:
+        agent = notte.Agent(session=session, vault=vault)
+        with pytest.raises(NoCredentialsFoundError):
+            _ = agent.run(task="go to console.notte.cc and login then retrieve the current active usage.")
