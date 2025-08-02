@@ -33,7 +33,7 @@ for package_dir in "${all_packages[@]}"; do
     for forbidden_pattern in "${forbidden_patterns[@]}"; do
         # Find all python files with playwright/patchright imports
         files_with_imports=$(grep -r -l "from $forbidden_pattern\|import $forbidden_pattern" "packages/$package_dir/" --include="*.py" --include="*.pyi" 2>/dev/null || true)
-        
+
         if [ ! -z "$files_with_imports" ]; then
             # Check if all files are playwright_async_api.py
             for file in $files_with_imports; do
@@ -54,4 +54,4 @@ if [ "$found_violations" = true ]; then
 fi
 
 echo "✓ No forbidden playwright/patchright imports found"
-exit 0 
+exit 0
