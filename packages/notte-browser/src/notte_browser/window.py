@@ -325,9 +325,21 @@ class BrowserWindow(BaseModel):
         except PlaywrightError:
             return await self.snapshot(screenshot=screenshot, retries=retries - 1)
 
+<<<<<<< HEAD
     async def goto_and_wait(
         self, url: str | None = None, tries: int = 3, operation: Literal["back", "forward"] | None = None
     ) -> None:
+=======
+    async def goto(self, url: str, tries: int = 3) -> None:
+        if url == self.page.url:
+            return
+        prefixes = ("http://", "https://", "file://")
+
+        if not any(url.startswith(prefix) for prefix in prefixes):
+            logger.info(f"Provided URL doesnt have a scheme, adding https to {url}")
+            url = "https://" + url
+
+>>>>>>> b94d80f (use file replay for compare test)
         def is_default_page():
             return self.page.url == "about:blank" and not url == "about:blank"
 
