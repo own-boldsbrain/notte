@@ -1,35 +1,41 @@
 from loguru import logger
+from notte_core.common.config import BrowserBackend, config
 
-try:
-    from playwright.async_api import (
-        Browser,
-        BrowserContext,
-        CDPSession,
-        ConsoleMessage,
-        Error,
-        FrameLocator,
-        Locator,
-        Page,
-        Playwright,
-        TimeoutError,
-        async_playwright,
-    )
+match config.browser_backend:
+    case BrowserBackend.PLAYWRIGHT:
+        from playwright.async_api import (
+            Browser,
+            BrowserContext,
+            CDPSession,
+            ConsoleMessage,
+            Error,
+            FrameLocator,
+            Locator,
+            Page,
+            Playwright,
+            TimeoutError,
+            async_playwright,
+        )
 
-    logger.info("⚙️ Prioritized 'playwright' over 'patchright'. Uninstall 'playwright' to default to 'patchright'.")
-except ImportError:
-    from patchright.async_api import (
-        Browser,
-        BrowserContext,
-        CDPSession,
-        ConsoleMessage,
-        Error,
-        FrameLocator,
-        Locator,
-        Page,
-        Playwright,
-        TimeoutError,
-        async_playwright,
-    )
+        logger.info("⚙️ Brower backend set to 'playwright'. You can change it in the config.toml file.")
+    case BrowserBackend.PATCHRIGHT:
+        from patchright.async_api import (
+            Browser,
+            BrowserContext,
+            CDPSession,
+            ConsoleMessage,
+            Error,
+            FrameLocator,
+            Locator,
+            Page,
+            Playwright,
+            TimeoutError,
+            async_playwright,
+        )
+    case _:  # pyright: ignore[reportUnnecessaryComparison]
+        raise ValueError(
+            f"Invalid browser backend: {config.browser_backend}. Valid backends are {list(BrowserBackend)}."
+        )  # pyright: ignore[reportUnreachable]
 
 
 def getPlaywrightOrPatchrightTimeoutError() -> tuple[type[Exception], type[Exception]] | type[Exception]:
