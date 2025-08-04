@@ -5,6 +5,7 @@ try:
         Browser,
         BrowserContext,
         CDPSession,
+        ConsoleMessage,
         Error,
         FrameLocator,
         Locator,
@@ -20,6 +21,7 @@ except ImportError:
         Browser,
         BrowserContext,
         CDPSession,
+        ConsoleMessage,
         Error,
         FrameLocator,
         Locator,
@@ -31,25 +33,47 @@ except ImportError:
 
 
 def getPlaywrightOrPatchrightTimeoutError() -> tuple[type[Exception], type[Exception]] | type[Exception]:
-    from patchright.async_api import TimeoutError as _PatchrightTimeoutError
+    errors: list[type[Exception]] = []
+    try:
+        from patchright.async_api import TimeoutError as _PatchrightTimeoutError
 
+        errors.append(_PatchrightTimeoutError)
+    except ImportError:
+        pass
     try:
         from playwright.async_api import TimeoutError as _PlaywrightTimeoutError
 
-        return _PatchrightTimeoutError, _PlaywrightTimeoutError
+        errors.append(_PlaywrightTimeoutError)
     except ImportError:
-        return _PatchrightTimeoutError
+        pass
+    if len(errors) == 1:
+        return errors[0]
+    elif len(errors) == 2:
+        return errors[0], errors[1]
+    else:
+        raise RuntimeError("Unexpected number of errors")
 
 
 def getPlaywrightOrPatchrightError() -> tuple[type[Exception], type[Exception]] | type[Exception]:
-    from patchright.async_api import Error as _PatchrightError
+    errors: list[type[Exception]] = []
+    try:
+        from patchright.async_api import Error as _PatchrightError
 
+        errors.append(_PatchrightError)
+    except ImportError:
+        pass
     try:
         from playwright.async_api import Error as _PlaywrightError
 
-        return _PatchrightError, _PlaywrightError
+        errors.append(_PlaywrightError)
     except ImportError:
-        return _PatchrightError
+        pass
+    if len(errors) == 1:
+        return errors[0]
+    elif len(errors) == 2:
+        return errors[0], errors[1]
+    else:
+        raise RuntimeError("Unexpected number of errors")
 
 
 __all__ = [
@@ -63,4 +87,5 @@ __all__ = [
     "Page",
     "CDPSession",
     "FrameLocator",
+    "ConsoleMessage",
 ]
