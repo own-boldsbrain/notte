@@ -17,7 +17,7 @@ match config.browser_backend:
             async_playwright,
         )
 
-        logger.info("⚙️ Brower backend set to 'playwright'. You can change it in the config.toml file.")
+        logger.info("⚙️ Browser backend set to 'playwright'. You can change it in the config.toml file.")
     case BrowserBackend.PATCHRIGHT:
         from patchright.async_api import (
             Browser,
