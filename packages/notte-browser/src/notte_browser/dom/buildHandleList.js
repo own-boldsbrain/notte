@@ -91,7 +91,13 @@
 	 * @type {Object<string, any>}
 	 */
 	const DOM_HASH_MAP = {};
-	const DOM_ELEMENTS = [];
+
+	/**
+	 * Array of interactive DOM elements.
+	 *
+	 * @type {Array<HTMLElement>}
+	 */
+	const DOM_ELEMENTS = {};
 
 	const ID = { current: 0 };
 
@@ -941,6 +947,7 @@
 			// regardless of viewport status
 			if (nodeData.isInViewport || viewportExpansion === -1) {
 				nodeData.highlightIndex = highlightIndex++;
+				DOM_ELEMENTS[nodeData.highlightIndex] = node;
 
 				if (doHighlightElements) {
 					if (focusHighlightIndex >= 0) {
@@ -1101,6 +1108,7 @@
 
 				if (nodeData.isTopElement || isMenuContainer) {
 					nodeData.isInteractive = isInteractiveElement(node);
+					// Add interactive elements to the DOM_ELEMENTS array
 					// Call the dedicated highlighting function
 					nodeWasHighlighted = handleHighlighting(nodeData, node, parentIframe, isParentHighlighted);
 				}
@@ -1171,9 +1179,6 @@
 
 		const id = `${ID.current++}`;
 		DOM_HASH_MAP[id] = nodeData;
-		if (nodeData.highlightIndex !== undefined) {
-			DOM_ELEMENTS.push(nodeData.highlightIndex);
-		}
 		return id;
 	}
 
@@ -1181,6 +1186,12 @@
 
 	// Clear the cache before starting
 	DOM_CACHE.clearCache();
-
-	return { rootId, map: DOM_HASH_MAP, elements: DOM_ELEMENTS };
+	return Array.from({ length: highlightIndex }, (_, index) => DOM_ELEMENTS[index] instanceof Element ? DOM_ELEMENTS[index] : null);
+	//const allElements = Array.from({ length: 69 }, (_, index) => DOM_ELEMENTS[index]);
+	//const invalidElements = allElements.filter(el => !(el instanceof Element));
+	//if (invalidElements.length > 0) {
+	//		throw new Error(`Invalid elements found in DOM_ELEMENTS: ${invalidElements.map(el => el.tagName).join(", ")}`);
+	//	}
+	// return { rootId, map: DOM_HASH_MAP, elements: DOM_ELEMENTS };
+	//return DOM_ELEMENTS[60];
 };
