@@ -95,6 +95,7 @@ release-clean:
 
 .PHONY: mcp
 mcp:
+    uv sync --extra mcp
 	uv run python -m notte_mcp.server
 
 .PHONY: mcp-install-claude

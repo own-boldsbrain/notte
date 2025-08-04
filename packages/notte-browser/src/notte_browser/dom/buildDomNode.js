@@ -91,6 +91,7 @@
 	 * @type {Object<string, any>}
 	 */
 	const DOM_HASH_MAP = {};
+	const DOM_ELEMENTS = {};
 
 	const ID = { current: 0 };
 
@@ -940,6 +941,7 @@
 			// regardless of viewport status
 			if (nodeData.isInViewport || viewportExpansion === -1) {
 				nodeData.highlightIndex = highlightIndex++;
+				DOM_ELEMENTS[nodeData.highlightIndex] = node;
 
 				if (doHighlightElements) {
 					if (focusHighlightIndex >= 0) {
@@ -1177,6 +1179,7 @@
 
 	// Clear the cache before starting
 	DOM_CACHE.clearCache();
+	const allElements = Array.from({ length: highlightIndex }, (_, index) => DOM_ELEMENTS[index] instanceof Element ? DOM_ELEMENTS[index] : null)
 
-	return { rootId, map: DOM_HASH_MAP };
+	return { rootId, map: DOM_HASH_MAP, elements: allElements };
 };

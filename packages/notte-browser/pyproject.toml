@@ -14,7 +14,7 @@ packages = [
 requires-python = ">=3.11"
 dependencies = [
     "notte_core==1.4.4.dev",
-    "patchright==1.50.0",
+    "playwright==0.1.0",
     "maincontentextractor",
     "markdownify>=0.14.1",
 ]
@@ -25,3 +25,4 @@ build-backend = "hatchling.build"
 
 [tool.uv.sources]
 maincontentextractor = { git = "https://github.com/HawkClaws/main_content_extractor", rev = "7c3ed7f6ed7f6c10223a3357d43ab741663bc812" }
+playwright = { path = "../../dist/playwright-0.1.0-py3-none-macosx_11_0_arm64.whl" }
