@@ -18,7 +18,7 @@ class EmailConfig(BaseModel):
     sender_email: Annotated[str, Field(min_length=1)]
     sender_password: Annotated[str, Field(min_length=1)]
     receiver_email: Annotated[str, Field(min_length=1)]
-    subject: str = "Notte Agent Task Report"
+    subject: str = "Notte Scraping Report"
 
 
 class EmailNotifier(BaseNotifier):
@@ -44,7 +44,7 @@ class EmailNotifier(BaseNotifier):
             self.server = None
 
     @override
-    def send_message(self, text: str) -> None:
+    def send_message(self, text: str, html: str | None) -> None:  # pyright: ignore [reportIncompatibleMethodOverride]
         """Send an email with the given subject and body."""
         self.connect()
         try:
@@ -57,6 +57,9 @@ class EmailNotifier(BaseNotifier):
             msg["Subject"] = self.config.subject
 
             msg.attach(MIMEText(text, "plain"))
+
+            if html is not None:
+                msg.attach(MIMEText(html, "html"))
 
             if self.server:
                 _ = self.server.send_message(msg)
