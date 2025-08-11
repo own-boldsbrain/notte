@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime as dt
+import json
 from collections.abc import Sequence
 from pathlib import Path
 from typing import Any, ClassVar, Literal, Unpack, overload
@@ -546,3 +547,92 @@ class NotteSession(AsyncResource, SyncResource):
             raise ValueError("Session already started")
         self.trajectory = session.trajectory
         self.snapshot = session._snapshot
+
+    @track_usage("local.session.run_script")
+    async def arun_script(self, script_file: str | Path) -> str | BaseModel | None:
+        """
+        Run a sequence of actions from a JSON script file (async version).
+
+        The JSON file should contain a list of action objects with the following structure:
+        [
+          {"action": "execute", "args": {"type": "goto", "value": "https://example.com"}},
+          {"action": "observe", "args": {"perception_type": "fast"}},
+          {"action": "execute", "args": {"type": "click", "selector": "button"}},
+          ...
+        ]
+
+        Args:
+            script_file: Path to the JSON script file
+        """
+        script_path = Path(script_file)
+        if not script_path.exists():
+            raise FileNotFoundError(f"Script file not found: {script_file}")
+
+        with open(script_path, "r") as f:
+            script_data = json.load(f)
+
+        if not isinstance(script_data, list):
+            raise ValueError("Script file must contain a list of actions")
+
+        logger.info(f"🎬 Running script with {len(script_data)} actions from {script_file}")
+
+        for i, action_item in enumerate(script_data):
+            if not isinstance(action_item, dict):
+                raise ValueError(f"Action {i} must be a dictionary")
+
+            action_type = action_item.get("action")
+            args = action_item.get("args", {})
+
+            if not isinstance(args, dict):
+                raise ValueError(f"Action {i} args must be a dictionary")
+
+            logger.info(f"💡 Step {i + 1}/{len(script_data)}: {action_type}")
+
+            try:
+                if action_type == "execute":
+                    result = await self.aexecute(**args)
+                    logger.info(f"{'✅' if result.success else '❌'} - {result.message}")
+                    if not result.success:
+                        logger.error("🚨 Stopping script execution since last action failed...")
+                        return
+
+                elif action_type == "observe":
+                    perception_type = args.get("perception_type", self.default_perception_type)
+                    obs = await self.aobserve(perception_type=perception_type)
+                    logger.info(f"🌌 Observation completed. Current URL: {obs.clean_url}")
+
+                elif action_type == "scrape":
+                    scraped_data = await self.ascrape(**args)
+                    if isinstance(scraped_data, str):
+                        logger.info(f"📄 Scraped data: {scraped_data[:100]}..., returning")
+                    else:
+                        logger.info(f"📄 Scraped structured data: {type(scraped_data).__name__}, returning")
+                    return scraped_data.get()
+
+                else:
+                    logger.warning(f"⚠️ Unknown action type '{action_type}' at step {i + 1}, skipping...")
+
+            except Exception as e:
+                logger.error(f"❌ Error executing action {i + 1}: {str(e)}")
+                logger.error("🚨 Stopping script execution due to error...")
+                return
+
+        logger.info("🎉 Script execution completed successfully")
+
+    @track_usage("local.session.run_script")
+    def run_script(self, script_file: str | Path) -> None:
+        """
+        Run a sequence of actions from a JSON script file.
+
+        The JSON file should contain a list of action objects with the following structure:
+        [
+          {"action": "execute", "args": {"type": "goto", "value": "https://example.com"}},
+          {"action": "observe", "args": {"perception_type": "fast"}},
+          {"action": "execute", "args": {"type": "click", "selector": "button"}},
+          ...
+        ]
+
+        Args:
+            script_file: Path to the JSON script file
+        """
+        return asyncio.run(self.arun_script(script_file))
