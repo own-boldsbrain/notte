@@ -111,6 +111,8 @@ class LLMEngine:
             if "```json" in content:
                 # extract content from JSON code blocks
                 content = self.sc.extract(content).strip()
+            elif content.startswith("[") and content.endswith("]"):  # for qwen model
+                content = content[1:-1].strip()
             elif not content.startswith("{") or not content.endswith("}"):
                 messages.append(
                     ChatCompletionUserMessage(
