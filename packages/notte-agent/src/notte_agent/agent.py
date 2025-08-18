@@ -66,7 +66,7 @@ class NotteAgent(BaseAgent):
         self.llm_with_tools: ToolLLMEngine[AgentState] | None = (
             ToolLLMEngine(engine=self.llm) if use_tool_calling else None  #  , state_response_format=AgentState
         )
-        self._tool_calls: dict[str, list[ChatCompletionMessageToolCall] | str] = {}
+        self._tool_calls: dict[str, list[ChatCompletionMessageToolCall]] = {}
         self.perception: BasePerception = perception
         self.prompt: BasePrompt = prompt
         self.trajectory: Trajectory = trajectory or session.trajectory.view()
@@ -74,8 +74,13 @@ class NotteAgent(BaseAgent):
         self.max_consecutive_failures: int = config.max_consecutive_failures
         self.consecutive_failures: int = 0
         # validator a LLM as a Judge that validates the agent's attempt at completing the task (i.e. `CompletionAction`)
+        validator_engine: LLMEngine = self.llm
+
+        if self.config.validator_model:
+            validator_engine = LLMEngine(model=self.config.validator_model, tracer=self.llm_tracer)
+
         self.validator: CompletionValidator = CompletionValidator(
-            llm=self.llm, perception=self.perception, use_vision=self.config.use_vision
+            llm=validator_engine, perception=self.perception, use_vision=self.config.use_vision
         )
 
         # ####################################
@@ -191,16 +196,6 @@ class NotteAgent(BaseAgent):
             case CompletionAction(success=True, answer=answer) as output:
                 # need to validate the agent output
                 logger.info(f"🔥 Validating agent output:\n{answer}")
-
-                if (
-                    self.llm_with_tools and "gpt-oss" in self.llm_with_tools.engine.model
-                ):  # gpt-oss on cerebras doesn't support strict format
-                    logger.info("Skipped validation")
-                    result = ExecutionResult(
-                        action=response.action, success=True, message="Could not validate, assuming success."
-                    )
-                    self.trajectory.append(result, force=True)
-                    return response.action
 
                 val_result = await self.validator.validate(
                     output=output,
@@ -389,8 +384,8 @@ class NotteAgent(BaseAgent):
         """Execute the task with maximum number of steps"""
         # change this to DEV if you want more explicit error messages
         # when you are developing your own agent
-        if request.url is not None:
-            request.task = f"You are already on '{request.url}' and {request.task}"
+        # if request.url is not None:
+        #     request.task = f"You are already on '{request.url}' and {request.task}"
 
         if self.session.storage is not None:
             request.task = f"{request.task} {self.session.storage.instructions()}"
