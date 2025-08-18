@@ -36,8 +36,6 @@ def action_to_litellm_tool(action_class: type[BaseAction]) -> dict[str, Any]:
     }
     combined_required = ["state", "action"]
 
-    # logger.info(f"properties: {combined_properties}")
-
     master_schema = {"type": "object", "properties": combined_properties, "required": combined_required}
 
     # Add $defs if present
@@ -110,7 +108,7 @@ class ActionToolManager:
 
     def validate_tool_call(self, tool_call: ChatCompletionMessageToolCall | str) -> AgentCompletion:
         """Validate tool call arguments and create the corresponding state/action instance."""
-        if type(tool_call) is str:
+        if isinstance(tool_call, str):
             function_args = json.loads(tool_call)
             function_name = function_args["action"]["type"]
         else:
@@ -150,9 +148,8 @@ The tool call has two properties:
 CRITICAL: each action must have a "type" sub property
 """
 
-    def __init__(self, engine: LLMEngine):  # , state_response_format: type[TResponseFormat]
+    def __init__(self, engine: LLMEngine):
         self.engine: LLMEngine = engine
-        # self.state_response_format: type[TResponseFormat] = state_response_format
         self.manager: ActionToolManager = ActionToolManager()
 
         self.tools: list[dict[str, Any]] = self.manager.get_tools()
@@ -177,18 +174,17 @@ CRITICAL: each action must have a "type" sub property
         if tool_calls and len(tool_calls) > 1:
             raise ValueError("Too many tool calls found in response.")
 
+        content: str | None = response.choices[0].message.content  # pyright: ignore [reportUnknownMemberType, reportAttributeAccessIssue, reportUnknownVariableType]
+
         if not tool_calls or len(tool_calls) == 0:
             # try fallback with normal response
-            content = response.choices[0].message.content
+            if not content or len(content) == 0:  # pyright: ignore[reportUnknownArgumentType]
+                raise ValueError("No tool calls or response content")
 
-            if not content or len(content) == 0:
-                raise ValueError("No tool calls found in response")
-
-            completion = self.manager.validate_tool_call(content)
+            completion = self.manager.validate_tool_call(content)  # pyright: ignore[reportUnknownArgumentType]
         else:
             completion = self.manager.validate_tool_call(tool_calls[0])
 
-        content: str | None = response.choices[0].message.content  # pyright: ignore [reportUnknownMemberType,reportAttributeAccessIssue, reportUnknownVariableType]
-        if content is not None and len(content) > 0 and not content.startswith("{"):  # pyright: ignore[reportUnknownArgumentType]
+        if content is not None and len(content) > 0 and not content.startswith("{"):  # pyright: ignore[reportUnknownArgumentType, reportUnknownMemberType]
             logger.info(f"🧠 Tool thinking: {content}")
         return completion, tool_calls
