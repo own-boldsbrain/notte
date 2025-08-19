@@ -1388,6 +1388,8 @@ class AgentCreateRequestDict(TypedDict, total=False):
         max_steps: Maximum number of steps the agent can take.
         vault_id: Optional ID of the vault to use.
         notifier_config: Config used for the notifier.
+        validator_model: The language model to use for validator reasoning.
+        use_tool_calling: Whether to use tool calling for taking actions.
     """
 
     reasoning_model: LlmModel | str
@@ -1397,6 +1399,7 @@ class AgentCreateRequestDict(TypedDict, total=False):
     persona_id: str | None
     notifier_config: dict[str, Any] | None
     validator_model: LlmModel | str | None
+    use_tool_calling: bool
 
 
 class SdkAgentCreateRequestDict(AgentCreateRequestDict, total=False):
@@ -1452,6 +1455,12 @@ class __AgentCreateRequest(SdkBaseModel):
     persona_id: Annotated[str | None, Field(description="The persona to use for the agent")] = None
     notifier_config: Annotated[dict[str, Any] | None, Field(description="Config used for the notifier")] = None
     validator_model: Annotated[LlmModel | str | None, Field(description="Reasoning model to use in validator")] = None
+    use_tool_calling: Annotated[
+        bool,
+        Field(
+            description="Whether to use tool calling for taking actions. Not all reasoning models support tool calling."
+        ),
+    ] = False
 
 
 # This is only used for local sessions to validate the reasoning model for local .env variables
