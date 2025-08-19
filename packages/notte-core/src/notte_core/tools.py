@@ -110,18 +110,21 @@ class ActionToolManager:
         """Validate tool call arguments and create the corresponding state/action instance."""
         if isinstance(tool_call, str):
             function_args = json.loads(tool_call)
-            function_name = function_args["action"]["type"]
         else:
-            function_name = tool_call.function.name
             function_args = json.loads(tool_call.function.arguments)
 
+        if not ("state" in function_args.keys() and "action" in function_args.keys()):
+            raise ValueError("Failed to validate tool call. Didn't include both 'state' and 'action'.")
+
+        if "type" not in function_args["action"]:
+            raise ValueError(f"Failed to validate {function_args}. Doesn't have an action 'type'.")
+
+        function_name = function_args["action"]["type"]
+
         # Find the action class
-        action_class = self.all_actions.get(function_name)  # pyright: ignore [reportArgumentType]
+        action_class = self.all_actions.get(function_name)
         if not action_class:
             raise ValueError(f"Unknown action: {function_name}")
-
-        if not ("state" in function_args.keys() and "action" in function_args.keys()):
-            raise ValueError(f"Failed to validate {function_name}. Didn't include both 'state' and 'action'.")
 
         # Handle special cases for interaction actions
         if issubclass(action_class, InteractionAction):

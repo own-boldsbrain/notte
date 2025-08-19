@@ -57,14 +57,15 @@ class NotteAgent(BaseAgent):
         session: NotteSession,
         trajectory: Trajectory | None = None,
         vault: BaseVault | None = None,
-        use_tool_calling: bool = True,
     ):
         super().__init__(session=session)
         self.config: NotteConfig = config
         self.llm_tracer: LlmUsageDictTracer = LlmUsageDictTracer()
         self.llm: LLMEngine = LLMEngine(model=self.config.reasoning_model, tracer=self.llm_tracer)
         self.llm_with_tools: ToolLLMEngine[AgentState] | None = (
-            ToolLLMEngine(engine=self.llm) if use_tool_calling else None  #  , state_response_format=AgentState
+            ToolLLMEngine(engine=self.llm)
+            if self.config.use_tool_calling
+            else None  #  , state_response_format=AgentState
         )
         self._tool_calls: dict[str, list[ChatCompletionMessageToolCall]] = {}
         self.perception: BasePerception = perception
