@@ -3,11 +3,7 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-<<<<<<< HEAD
-from typing import cast
-=======
-from typing import Any, TypeVar, cast
->>>>>>> 1556040 (add tool based generation)
+from typing import Any, cast
 
 import litellm
 from litellm import (
