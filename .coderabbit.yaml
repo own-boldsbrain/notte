@@ -29,7 +29,8 @@ reviews:
   labeling_instructions:
     - label: ""
       instructions: ""
-  path_filters: []
+  path_filters:
+    - "!**/.dom_reports/**"
   path_instructions:
     - path: ""
       instructions: ""
