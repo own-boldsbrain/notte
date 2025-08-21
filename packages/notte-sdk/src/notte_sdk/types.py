@@ -1398,8 +1398,6 @@ class AgentCreateRequestDict(TypedDict, total=False):
     vault_id: str | None
     persona_id: str | None
     notifier_config: dict[str, Any] | None
-    validator_model: LlmModel | str | None
-    use_tool_calling: bool
 
 
 class SdkAgentCreateRequestDict(AgentCreateRequestDict, total=False):
@@ -1454,13 +1452,6 @@ class __AgentCreateRequest(SdkBaseModel):
     vault_id: Annotated[str | None, Field(description="The vault to use for the agent")] = None
     persona_id: Annotated[str | None, Field(description="The persona to use for the agent")] = None
     notifier_config: Annotated[dict[str, Any] | None, Field(description="Config used for the notifier")] = None
-    validator_model: Annotated[LlmModel | str | None, Field(description="Reasoning model to use in validator")] = None
-    use_tool_calling: Annotated[
-        bool,
-        Field(
-            description="Whether to use tool calling for taking actions. Not all reasoning models support tool calling."
-        ),
-    ] = False
 
 
 # This is only used for local sessions to validate the reasoning model for local .env variables
