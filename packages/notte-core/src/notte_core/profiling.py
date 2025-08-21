@@ -1,6 +1,7 @@
 import contextlib
 import csv
 import functools
+import html
 import inspect
 import json
 import time
@@ -22,6 +23,11 @@ from notte_core.common.config import config
 P = ParamSpec("P")
 R = TypeVar("R")
 TP = TypeVar("TP", bound=SDKTracerProvider)
+
+
+def escape_xml_attr(text: str) -> str:
+    """Escape text for use in XML attributes."""
+    return html.escape(text, quote=True)
 
 
 class NotteProfiler:
@@ -446,6 +452,47 @@ class NotteProfiler:
             "let isDragging = false;",
             "let lastX = 0;",
             "",
+            "function highlightCallStack(callStack) {",
+            "    // Clear any existing highlights",
+            "    clearCallStackHighlight();",
+            "    ",
+            "    // Parse the call stack (span IDs)",
+            "    const stackSpanIds = callStack.split(';');",
+            "    ",
+            "    // Find all frames that are part of this call stack",
+            "    const frames = document.querySelectorAll('.frame');",
+            "    frames.forEach(frame => {",
+            "        const frameSpanId = frame.getAttribute('data-span-id');",
+            "        if (frameSpanId) {",
+            "            // Check if this frame's span ID is in the call stack we want to highlight",
+            "            const isInStack = stackSpanIds.includes(frameSpanId);",
+            "            if (isInStack) {",
+            "                const rect = frame.querySelector('rect');",
+            "                if (rect) {",
+            "                    rect.style.filter = 'brightness(1.3)';",
+            "                }",
+            "            } else {",
+            "                // Dim frames not in the call stack",
+            "                const rect = frame.querySelector('rect');",
+            "                if (rect) {",
+            "                    rect.style.opacity = '0.3';",
+            "                }",
+            "            }",
+            "        }",
+            "    });",
+            "}",
+            "",
+            "function clearCallStackHighlight() {",
+            "    const frames = document.querySelectorAll('.frame');",
+            "    frames.forEach(frame => {",
+            "        const rect = frame.querySelector('rect');",
+            "        if (rect) {",
+            "            rect.style.filter = '';",
+            "            rect.style.opacity = '0.8';",
+            "        }",
+            "    });",
+            "}",
+            "",
             "function setupHoverEffects() {",
             '    const svg = document.querySelector("svg");',
             "    let currentTooltip = null;",
@@ -460,20 +507,29 @@ class NotteProfiler:
             "        const tooltipText = frame.getAttribute('data-tooltip');",
             "        if (!tooltipText) return;",
             "",
+            "        // Get call stack for highlighting",
+            "        const callStack = frame.getAttribute('data-call-stack');",
+            "        if (callStack) {",
+            "            highlightCallStack(callStack);",
+            "        }",
+            "",
             "        // Get mouse position relative to SVG",
             "        const svgRect = svg.getBoundingClientRect();",
             "        const mouseX = mouseEvent.clientX - svgRect.left;",
             "        const mouseY = mouseEvent.clientY - svgRect.top;",
             "",
-            "        // Calculate tooltip dimensions more precisely",
+            "        // Calculate tooltip dimensions for multi-line text",
+            "        const lines = tooltipText.split('|');",
             "        const padding = 6;",
             "        const charWidth = 5.4;",
-            "        const tooltipWidth = Math.min(Math.ceil(tooltipText.length * charWidth) + padding * 2, 400);",
-            "        const tooltipHeight = 20;",
+            "        const lineHeight = 14;",
+            "        const maxLineLength = Math.max(...lines.map(line => line.length));",
+            "        const tooltipWidth = Math.min(Math.ceil(maxLineLength * charWidth) + padding * 2, 400);",
+            "        const tooltipHeight = lines.length * lineHeight + padding * 2;",
             "",
             "        // Position tooltip near mouse but keep it visible",
             "        let tooltipX = mouseX + 2;",
-            "        let tooltipY = mouseY - 150;",
+            "        let tooltipY = mouseY - tooltipHeight - 10;",
             "",
             "        // Keep tooltip within SVG bounds",
             "        if (tooltipX + tooltipWidth > svgRect.width - 10) {",
@@ -499,19 +555,21 @@ class NotteProfiler:
             "        bg.setAttribute('rx', '4');",
             "        bg.setAttribute('opacity', '0.95');",
             "",
-            "        // Create text with precise centering",
-            "        const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');",
-            "        text.setAttribute('x', tooltipX + tooltipWidth/2);",
-            "        text.setAttribute('y', tooltipY + tooltipHeight/2);",
-            "        text.setAttribute('fill', '#ffffff');",
-            "        text.setAttribute('font-size', '11px');",
-            "        text.setAttribute('font-family', 'monospace');",
-            "        text.setAttribute('text-anchor', 'middle');",
-            "        text.setAttribute('dominant-baseline', 'central');",
-            "        text.textContent = tooltipText;",
-            "",
             "        currentTooltip.appendChild(bg);",
-            "        currentTooltip.appendChild(text);",
+            "        ",
+            "        // Create text lines",
+            "        lines.forEach((line, index) => {",
+            "            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');",
+            "            text.setAttribute('x', tooltipX + padding);",
+            "            text.setAttribute('y', tooltipY + padding + (index + 0.5) * lineHeight);",
+            "            text.setAttribute('fill', '#ffffff');",
+            "            text.setAttribute('font-size', '11px');",
+            "            text.setAttribute('font-family', 'monospace');",
+            "            text.setAttribute('dominant-baseline', 'central');",
+            "            text.textContent = line;",
+            "            currentTooltip.appendChild(text);",
+            "        });",
+            "        ",
             "        svg.appendChild(currentTooltip);",
             "    }",
             "",
@@ -521,6 +579,7 @@ class NotteProfiler:
             "            currentTooltip = null;",
             "        }",
             "        currentFrame = null;",
+            "        clearCallStackHighlight();",
             "    }",
             "",
             "    // Use mousemove for better tracking",
@@ -832,14 +891,69 @@ class NotteProfiler:
                 total_func_pct = (total_func_time / total_time) * 100
                 current_pct = (item["duration"] / total_time) * 100
 
-                # Create tooltip text with both current and total percentages
-                tooltip = f"{item['name']}: {duration_str} (this: {current_pct:.1f}%, total: {total_func_pct:.1f}%)"
+                # Build parent stack information
+                parent_stack: list[dict[Any, Any]] = []
+                current_span = item
+                while current_span.get("parent_id"):
+                    parent_id = current_span["parent_id"]
+                    if parent_id in span_map:
+                        parent_span = span_map[parent_id]
+                        parent_duration_str = (
+                            f"{parent_span['duration']:.1e}s"
+                            if parent_span["duration"] < 0.001
+                            else f"{parent_span['duration']:.1f}s"
+                        )
+                        parent_total_time = function_total_times[parent_span["name"]]
+                        parent_total_pct = (parent_total_time / total_time) * 100
+                        parent_current_pct = (parent_span["duration"] / total_time) * 100
+                        parent_stack.append(
+                            {
+                                "name": parent_span["name"],
+                                "duration_str": parent_duration_str,
+                                "current_pct": parent_current_pct,
+                                "total_pct": parent_total_pct,
+                            }
+                        )
+                        current_span = parent_span
+                    else:
+                        break
+
+                # Create tooltip text with parent stack
+                tooltip_lines = [
+                    f"{item['name']}",
+                    f"{duration_str} (this: {current_pct:.1f}%, total: {total_func_pct:.1f}%)",
+                ]
+
+                for i, parent in enumerate(parent_stack):
+                    indent = "  " * (i + 1)
+                    tooltip_lines.append(f"{indent}{parent['name']}")
+                    tooltip_lines.append(
+                        f"{indent}{parent['duration_str']} (this: {parent['current_pct']:.1f}%, total: {parent['total_pct']:.1f}%)"
+                    )
+
+                tooltip = "|".join(tooltip_lines)
+
+                # Build call stack for highlighting (include current item and all parents)
+                call_stack = [item["span_id"]]
+                current_span = item
+                while current_span.get("parent_id"):
+                    parent_id = current_span["parent_id"]
+                    if parent_id in span_map:
+                        parent_span = span_map[parent_id]
+                        call_stack.append(parent_span["span_id"])
+                        current_span = parent_span
+                    else:
+                        break
 
                 # Rectangle with small gap for separation
                 # Store text content as data attribute for zoom functionality
                 gap = 0.5  # Small gap between blocks
+                escaped_name = escape_xml_attr(item["name"])
+                escaped_tooltip = escape_xml_attr(tooltip)
+                escaped_call_stack = escape_xml_attr(";".join(str(span_id) for span_id in call_stack))
+                escaped_span_id = escape_xml_attr(str(item["span_id"]))
                 svg_lines.append(
-                    f'<g class="frame" data-text-content="{item["name"]}" data-tooltip="{tooltip}" transform="translate({x:.2f},{y})">'
+                    f'<g class="frame" data-text-content="{escaped_name}" data-tooltip="{escaped_tooltip}" data-call-stack="{escaped_call_stack}" data-span-id="{escaped_span_id}" transform="translate({x:.2f},{y})">'
                     + f'<rect width="{w - gap:.2f}" height="{sublayer_height - gap}" '
                     + f'fill="{color}" stroke="#1a1a1a" stroke-width="0.3" opacity="0.8">'
                     + "</rect>"
@@ -848,9 +962,10 @@ class NotteProfiler:
                 # Text (only if wide enough initially) - smaller threshold for compact layout
                 if w > 40:
                     text = item["name"]
+                    escaped_text = escape_xml_attr(text)
                     svg_lines.append(
                         f'<text x="{w / 2:.2f}" y="{sublayer_height / 2:.2f}" '
-                        + f'text-anchor="middle" dominant-baseline="central" data-full-text="{text}">{text}</text>'
+                        + f'text-anchor="middle" dominant-baseline="central" data-full-text="{escaped_text}">{escaped_text}</text>'
                     )
 
                 svg_lines.append("</g>")
