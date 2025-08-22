@@ -167,13 +167,33 @@ class NotteProfiler:
                 # Get qualified name for class methods, otherwise use function name
                 op_name = func.__qualname__ if "." in func.__qualname__ else func.__name__
 
-            # Handle async functions
-            if inspect.iscoroutinefunction(func):
+            # Handle async functions - check both the decorated function and its original
+            is_async = inspect.iscoroutinefunction(func)
+
+            # For staticmethods, we need to check the original function
+            if not is_async and hasattr(func, "__wrapped__"):
+                # Check if the wrapped function is async
+                wrapped_func = getattr(func, "__wrapped__", None)
+                if wrapped_func is not None:
+                    is_async = inspect.iscoroutinefunction(wrapped_func)
+
+            # Also check if the function has the CO_COROUTINE flag
+            if not is_async and hasattr(func, "__code__"):
+                is_async = bool(func.__code__.co_flags & 0x80)  # CO_COROUTINE flag
+
+            # Add async information to attributes
+            span_attributes = attributes.copy() if attributes else {}
+            span_attributes["is_async"] = is_async
+
+            if is_async:
 
                 @functools.wraps(func)
                 async def async_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-                    async with self.profile(op_name, attributes):
-                        return await func(*args, **kwargs)
+                    async with self.profile(op_name, span_attributes):
+                        result = func(*args, **kwargs)
+                        if inspect.isawaitable(result):
+                            return await result
+                        return result
 
                 return cast(Callable[P, R], async_wrapper)  # pyright: ignore[reportInvalidCast]
 
@@ -182,7 +202,7 @@ class NotteProfiler:
 
                 @functools.wraps(func)
                 def sync_wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
-                    with self.profile_sync(op_name, attributes):
+                    with self.profile_sync(op_name, span_attributes):
                         return func(*args, **kwargs)
 
                 return cast(Callable[P, R], sync_wrapper)  # pyright: ignore[reportInvalidCast]
@@ -267,6 +287,7 @@ class NotteProfiler:
                         "end_time": span["end_time"],
                         "depth": len(current_path) - 1,
                         "name": span["name"],
+                        "is_async": span.get("attributes", {}).get("is_async", False),
                     }
                 )
 
@@ -360,9 +381,11 @@ class NotteProfiler:
                     break  # Parent not found, stop counting
             return depth
 
-        # Update span data with actual stack depths
+        # Update span data with actual stack depths and ensure is_async is at top level
         for span in span_data:
             span["depth"] = calculate_depth(span)
+            # Move is_async from attributes to top level for easier access
+            span["is_async"] = span.get("attributes", {}).get("is_async", False)
 
         # Group spans by depth for layout
         max_depth = max(span["depth"] for span in span_data)
@@ -952,10 +975,20 @@ class NotteProfiler:
                 escaped_tooltip = escape_xml_attr(tooltip)
                 escaped_call_stack = escape_xml_attr(";".join(str(span_id) for span_id in call_stack))
                 escaped_span_id = escape_xml_attr(str(item["span_id"]))
+
+                # Use different stroke colors for sync vs async functions
+                is_async = item.get("is_async", False)
+                if is_async:
+                    stroke_color = "#1a1a1a"  # Dark for async functions
+                    stroke_width = "0.3"
+                else:
+                    stroke_color = "#ffffff"  # White for sync functions
+                    stroke_width = "1.2"
+
                 svg_lines.append(
                     f'<g class="frame" data-text-content="{escaped_name}" data-tooltip="{escaped_tooltip}" data-call-stack="{escaped_call_stack}" data-span-id="{escaped_span_id}" transform="translate({x:.2f},{y})">'
                     + f'<rect width="{w - gap:.2f}" height="{sublayer_height - gap}" '
-                    + f'fill="{color}" stroke="#1a1a1a" stroke-width="0.3" opacity="0.8">'
+                    + f'fill="{color}" stroke="{stroke_color}" stroke-width="{stroke_width}" opacity="0.8">'
                     + "</rect>"
                 )
 
