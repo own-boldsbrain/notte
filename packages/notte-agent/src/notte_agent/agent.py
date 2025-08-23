@@ -386,11 +386,6 @@ class NotteAgent(BaseAgent):
 
     async def _run(self, request: AgentRunRequest) -> AgentResponse:
         """Execute the task with maximum number of steps"""
-        # change this to DEV if you want more explicit error messages
-        # when you are developing your own agent
-        # if request.url is not None:
-        #     request.task = f"You are already on '{request.url}' and {request.task}"
-
         if self.session.storage is not None:
             request.task = f"{request.task} {self.session.storage.instructions()}"
 

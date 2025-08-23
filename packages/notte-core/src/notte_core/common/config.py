@@ -340,7 +340,7 @@ class NotteConfig(TomlConfig):
     # [agent]
     max_steps: int
     use_vision: bool
-    use_tool_calling: bool = False
+    use_tool_calling: bool
 
     # [dom_parsing]
     highlight_elements: bool

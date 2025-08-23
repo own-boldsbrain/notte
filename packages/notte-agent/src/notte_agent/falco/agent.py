@@ -22,10 +22,6 @@ class FalcoAgent(NotteAgent):
         **data: typing.Unpack[AgentCreateRequestDict],
     ):
         config: NotteConfig = NotteConfig.from_toml(**data)
-        # Remove local params from AgentCreateRequest before validating
-        # They are still included/passed in NotteConfig
-        _ = data.pop("validator_model", None)
-        _ = data.pop("use_tool_calling", None)
         _ = AgentCreateRequest.model_validate(data)
         super().__init__(
             prompt=FalcoPrompt(tools=tools),
