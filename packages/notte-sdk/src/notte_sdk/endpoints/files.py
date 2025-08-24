@@ -36,12 +36,7 @@ class FileStorageClient(BaseClient):
     STORAGE_DOWNLOAD_LIST = "{session_id}/downloads"
 
     def __init__(
-        self,
-        root_client: NotteClient,
-        api_key: str | None = None,
-        server_url: str | None = None,
-        verbose: bool = False,
-        session_id: str | None = None,
+        self, root_client: NotteClient, api_key: str | None = None, server_url: str | None = None, verbose: bool = False
     ):
         """
         Initialize a FileStorageClient instance.
@@ -56,10 +51,6 @@ class FileStorageClient(BaseClient):
             api_key=api_key,
             verbose=verbose,
         )
-        self.session_id = session_id
-
-    def set_session_id(self, id: str) -> None:
-        self.session_id = id
 
     @staticmethod
     def _storage_upload_endpoint(file_name: str | None = None) -> NotteEndpoint[FileUploadResponse]:
@@ -128,7 +119,7 @@ class FileStorageClient(BaseClient):
         endpoint = self._storage_upload_endpoint(file_name=upload_file_name)
         return self.request(endpoint.with_file(file_path))
 
-    def download(self, file_name: str, local_dir: str, force: bool = False) -> bool:
+    def download(self, session_id: str, file_name: str, local_dir: str, force: bool = False) -> bool:
         """
         Downloads a file from storage for the current session.
 
@@ -140,8 +131,6 @@ class FileStorageClient(BaseClient):
         Returns:
             True if the file was downloaded successfully, False otherwise.
         """
-        if not self.session_id:
-            raise ValueError("File object not attached to a Session!")
 
         local_dir_path = Path(local_dir)
         if not local_dir_path.exists():
@@ -152,7 +141,7 @@ class FileStorageClient(BaseClient):
         if file_path.exists() and not force:
             raise ValueError(f"A file with name '{file_name}' is already at the path! Use force=True to overwrite.")
 
-        endpoint = self._storage_download_endpoint(session_id=self.session_id, file_name=file_name)
+        endpoint = self._storage_download_endpoint(session_id=session_id, file_name=file_name)
         _ = DownloadFileRequest.model_validate({"filename": file_name})
         resp: FileLinkResponse = self.request(endpoint)
         return self.request_download(resp.url, str(file_path))
@@ -165,32 +154,40 @@ class FileStorageClient(BaseClient):
         resp: ListFilesResponse = self.request(endpoint)
         return resp.files
 
-    def list_downloaded_files(self) -> list[str]:
+    def list_downloaded_files(self, session_id: str) -> list[str]:
         """
         List files in storage. 'type' can be 'uploads' or 'downloads'.
         """
-        if not self.session_id:
-            raise ValueError("File object not attached to a Session!")
 
-        endpoint = self._storage_download_list_endpoint(session_id=self.session_id)
-
+        endpoint = self._storage_download_list_endpoint(session_id=session_id)
         resp_dl: ListFilesResponse = self.request(endpoint)
         return resp_dl.files
 
 
 class RemoteFileStorage(BaseStorage):
-    def __init__(self, client: FileStorageClient):
+    def __init__(self, client: FileStorageClient, session_id: str | None = None):
         self.client: FileStorageClient = client
         upload_dir = CACHE_DIR / "uploads"
         download_dir = CACHE_DIR / "downloads"
         upload_dir.mkdir(parents=True, exist_ok=True)
         download_dir.mkdir(parents=True, exist_ok=True)
         super().__init__(upload_dir=str(upload_dir), download_dir=str(download_dir))
+        self._session_id: str | None = session_id
+
+    def set_session_id(self, id: str) -> None:
+        self._session_id = id
+
+    @property
+    def session_id(self) -> str:
+        if self._session_id is None:
+            raise ValueError("Session ID is not set. Call set_session_id() to set the session ID.")
+        return self._session_id
 
     @override
     def get_file(self, name: str) -> str | None:
         assert self.download_dir is not None
-        status = self.client.download(file_name=name, local_dir=self.download_dir)
+
+        status = self.client.download(session_id=self.session_id, file_name=name, local_dir=self.download_dir)
         if not status:
             return None
         return str(Path(self.download_dir) / name)
@@ -210,7 +207,7 @@ class RemoteFileStorage(BaseStorage):
 
     @override
     def list_downloaded_files(self) -> list[str]:
-        return self.client.list_downloaded_files()
+        return self.client.list_downloaded_files(session_id=self.session_id)
 
 
 @final
@@ -219,6 +216,4 @@ class RemoteFileStorageFactory:
         self.client = client
 
     def __call__(self, session_id: str | None = None) -> RemoteFileStorage:
-        if session_id is not None:
-            self.client.set_session_id(session_id)
-        return RemoteFileStorage(client=self.client)
+        return RemoteFileStorage(client=self.client, session_id=session_id)
