@@ -154,6 +154,18 @@ def handle_storage_upload_file(
     run_example(eval_example, code=code)
 
 
+@handle_file("sessions/external_cdp.mdx")
+def handle_external_cdp(
+    eval_example: EvalExample,
+    code: str,
+) -> None:
+    client = NotteClient()
+    with client.Session() as session:
+        cdp_url = session.cdp_url()
+        code = code.replace("wss://your-external-cdp-url", cdp_url)
+        run_example(eval_example, code=code)
+
+
 @handle_file("sessions/upload_cookies.mdx")
 def handle_cookies_file(
     eval_example: EvalExample,
