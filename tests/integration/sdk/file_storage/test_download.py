@@ -2,8 +2,11 @@ import tempfile
 from pathlib import Path
 
 import pytest
+from dotenv import load_dotenv
 from notte_sdk import NotteClient
 from pydantic import BaseModel
+
+_ = load_dotenv()
 
 
 class DownloadTest(BaseModel):

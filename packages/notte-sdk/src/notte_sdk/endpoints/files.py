@@ -183,6 +183,13 @@ class RemoteFileStorage(BaseStorage):
             raise ValueError("Session ID is not set. Call set_session_id() to set the session ID.")
         return self._session_id
 
+    def download(self, file_name: str, local_dir: str, force: bool = False) -> bool:
+        return self.client.download(session_id=self.session_id, file_name=file_name, local_dir=local_dir, force=force)
+
+    def upload(self, file_path: str, upload_file_name: str | None = None) -> bool:
+        response = self.client.upload(file_path=file_path, upload_file_name=upload_file_name)
+        return response.success
+
     @override
     def get_file(self, name: str) -> str | None:
         assert self.download_dir is not None

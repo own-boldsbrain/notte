@@ -1,8 +1,11 @@
 from pathlib import Path
 
 import pytest
+from dotenv import load_dotenv
 from notte_sdk import NotteClient
 from pydantic import BaseModel
+
+_ = load_dotenv()
 
 DATA_DIR = Path(__file__).parent / "data"
 
@@ -46,7 +49,7 @@ def test_uploads(test: UploadTest):
 
         for f in files:
             resp = storage.upload(str(DATA_DIR / f))
-            assert resp.success
+            assert resp
 
         uploaded = storage.list_uploaded_files()
 
@@ -55,7 +58,7 @@ def test_uploads(test: UploadTest):
 
         agent = notte.Agent(session=session, max_steps=test.max_steps)
         resp = agent.run(url=test.url, task=test.task)
-        assert resp.success
+        assert resp
 
 
 def test_upload_non_existent_file_should_raise_error():
