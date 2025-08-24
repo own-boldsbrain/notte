@@ -4,6 +4,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from notte_core.storage import BaseStorage
 from pydantic import BaseModel
 from typing_extensions import final, override
 
@@ -17,6 +18,10 @@ from notte_sdk.types import (
 
 if TYPE_CHECKING:
     from notte_sdk.client import NotteClient
+
+
+CACHE_DIR: Path = Path(__file__).parent.parent.parent.parent / ".notte.cache"
+CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 
 @final
@@ -173,12 +178,47 @@ class FileStorageClient(BaseClient):
         return resp_dl.files
 
 
+class RemoteFileStorage(BaseStorage):
+    def __init__(self, client: FileStorageClient):
+        self.client: FileStorageClient = client
+        upload_dir = CACHE_DIR / "uploads"
+        download_dir = CACHE_DIR / "downloads"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        download_dir.mkdir(parents=True, exist_ok=True)
+        super().__init__(upload_dir=str(upload_dir), download_dir=str(download_dir))
+
+    @override
+    def get_file(self, name: str) -> str | None:
+        assert self.download_dir is not None
+        status = self.client.download(file_name=name, local_dir=self.download_dir)
+        if not status:
+            return None
+        return str(Path(self.download_dir) / name)
+
+    @override
+    def set_file(self, path: str) -> bool:
+        # TODO: fix this the behaviour is not correct, we should upload to the download dir not the upload dir
+        # status = self.client.upload(file_path=path)
+        # if not status:
+        #     return False
+        # return True
+        return True
+
+    @override
+    def list_uploaded_files(self) -> list[str]:
+        return self.client.list_uploaded_files()
+
+    @override
+    def list_downloaded_files(self) -> list[str]:
+        return self.client.list_downloaded_files()
+
+
 @final
 class RemoteFileStorageFactory:
     def __init__(self, client: FileStorageClient):
         self.client = client
 
-    def __call__(self, session_id: str | None = None) -> FileStorageClient:
+    def __call__(self, session_id: str | None = None) -> RemoteFileStorage:
         if session_id is not None:
             self.client.set_session_id(session_id)
-        return self.client
+        return RemoteFileStorage(client=self.client)
