@@ -52,13 +52,29 @@ def create_model_from_schema(schema: dict[str, Any]) -> type[BaseModel]:
             return models.get(model_reference, Any)  # type: ignore[arg-type]
 
         if "anyOf" in field_schema:
-            types = [TYPE_MAPPING.get(t["type"], Any) for t in field_schema["anyOf"] if t.get("type")]
+            types = []
+            for t in field_schema["anyOf"]:
+                if "$ref" in t:
+                    # Handle $ref items by resolving the reference
+                    model_reference = t["$ref"].split("/")[-1]
+                    resolved_type = models.get(model_reference, Any)
+                    types.append(resolved_type)
+                elif t.get("type"):
+                    # Handle regular type items
+                    types.append(TYPE_MAPPING.get(t["type"], Any))
+            
             if type(None) in types:
                 types.remove(type(None))
-                if len(types) == 1:
+                if len(types) == 0:
+                    # If all we had was None, return Optional[Any]
+                    return Optional[Any]  # type: ignore[return-value]
+                elif len(types) == 1:
                     return Optional[types[0]]  # type: ignore[return-value]
                 return Optional[Union[tuple(types)]]  # type: ignore[return-value]
             else:
+                if len(types) == 0:
+                    # If no valid types found, return Any
+                    return Any  # type: ignore[return-value]
                 return Union[tuple(types)]  # type: ignore[return-value]
 
         field_type = TYPE_MAPPING.get(field_schema.get("type"), Any)  # type: ignore[arg-type]
