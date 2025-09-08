@@ -236,9 +236,14 @@ class BrowserWindow(BaseModel):
 
     async def tab_metadata(self, tab_idx: int | None = None) -> TabsData:
         page = self.tabs[tab_idx] if tab_idx is not None else self.page
+        try:
+            page_title = await asyncio.wait_for(page.title(), timeout=5.0)
+        except TimeoutError:
+            page_title = page.url
+
         return TabsData(
             tab_id=tab_idx if tab_idx is not None else -1,
-            title=await page.title(),
+            title=page_title,
             url=page.url,
         )
 
