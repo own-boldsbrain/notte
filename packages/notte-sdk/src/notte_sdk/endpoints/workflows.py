@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import json
+import re
 import traceback
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, ClassVar, Unpack, final, overload
 
 import requests
@@ -353,6 +355,88 @@ class WorkflowsClient(BaseClient):
         request = ListWorkflowRunsRequest.model_validate(data)
         return self.request(self._list_workflow_runs_endpoint(workflow_id).with_params(request))
 
+    @staticmethod
+    def extract_session_id(s: str) -> str | None:
+        """
+        Extracts the session ID (UUID) from a log line containing
+        '[Session] <uuid> started with request'.
+        Returns None if no match is found.
+        """
+        pattern = r"\[Session\]\s+([0-9a-fA-F-]{36})\s+started with request"
+        match = re.search(pattern, s)
+        return match.group(1) if match else None
+
+    @staticmethod
+    def decode_message(text: str):
+        # Convert ANSI color codes to loguru color tags
+        colored_text = WorkflowsClient._ansi_to_loguru_colors(text)
+
+        split = colored_text.split("|", 3)
+
+        return split[-1].strip()
+
+    @staticmethod
+    def _ansi_to_loguru_colors(text: str) -> str:
+        """
+        Convert ANSI color codes to loguru color tags.
+        Properly handles multiple colors and styles within a single line.
+        """
+        # ANSI color code to loguru tag mapping
+        color_codes = {
+            "30": "<k>",  # Black
+            "31": "<r>",  # Red
+            "32": "<g>",  # Green
+            "33": "<y>",  # Yellow
+            "34": "<e>",  # Blue
+            "35": "<m>",  # Magenta
+            "36": "<c>",  # Cyan
+            "37": "<w>",  # White
+        }
+
+        # Track currently open tags
+        open_tags: list[str] = []
+        result_parts: list[str] = []
+
+        # Pattern to match ANSI escape sequences
+        ansi_pattern = r"\x1b\[([0-9;]*)m"
+
+        # Split text by ANSI sequences while keeping the sequences
+        parts = re.split(ansi_pattern, text)
+
+        i = 0
+        while i < len(parts):
+            if i % 2 == 0:
+                # This is text content
+                if parts[i]:
+                    result_parts.append(parts[i])
+            else:
+                # This is an ANSI code
+                codes = parts[i].split(";") if parts[i] else ["0"]
+
+                for code in codes:
+                    code = code.strip()
+
+                    if code == "0":
+                        # Reset all - close all open tags
+                        if open_tags:
+                            result_parts.append("</>")
+                            open_tags.clear()
+                    elif code in color_codes:
+                        # Color code - open tag if not already open
+                        tag = color_codes[code]
+                        if tag not in open_tags:
+                            result_parts.append(tag)
+                            open_tags.append(tag)
+                    # Ignore other codes (like '1' for bold)
+
+            i += 1
+
+        # Close any remaining open tags at the end
+        if open_tags:
+            result_parts.append("</>")
+
+        return "".join(result_parts)
+
     def run(
         self, workflow_run_id: str, timeout: int | None = None, **data: Unpack[RunWorkflowRequestDict]
     ) -> WorkflowRunResponse:
@@ -361,13 +445,58 @@ class WorkflowsClient(BaseClient):
             workflow_id=_request.workflow_id,
             workflow_run_id=workflow_run_id,
             variables=_request.variables,
+            stream=_request.stream,
         )
         endpoint = self._start_workflow_run_endpoint(
             workflow_id=request.workflow_id, run_id=workflow_run_id
         ).with_request(request)
-        return self.request(
-            endpoint, headers={"x-notte-api-key": self.token}, timeout=timeout or self.WORKFLOW_RUN_TIMEOUT
-        )
+
+        headers = {"x-notte-api-key": self.token}
+        headers["Content-Type"] = "application/json"
+        headers = self.headers(headers=headers)
+        url = self.request_path(endpoint)
+        req_data = request.model_dump_json(exclude_none=True)
+        timeout = timeout or self.WORKFLOW_RUN_TIMEOUT
+
+        if not request.stream:
+            res = requests.post(url=url, headers=headers, data=req_data, timeout=timeout, stream=True)
+            return WorkflowRunResponse.model_validate(res.json())
+
+        result: Any | None = None
+
+        with requests.post(url=url, headers=headers, data=req_data, timeout=timeout, stream=True) as res:
+            res.raise_for_status()
+            for line in res.iter_lines():
+                if not line:  # Skip empty lines
+                    continue
+
+                try:
+                    # Lambda streaming often uses Server-Sent Events format
+                    utf = line.decode("utf-8")
+                    if utf.startswith("data: "):
+                        message = json.loads(utf[6:])
+                        log_msg = message.get("message", "")
+                        decoded = WorkflowsClient.decode_message(log_msg)
+
+                        if message["type"] == "log":
+                            logger.opt(colors=True).info(decoded)
+                        elif message["type"] == "result":
+                            result = log_msg
+
+                        session_id = WorkflowsClient.extract_session_id(log_msg)
+
+                        if session_id is not None:
+                            logger.info(
+                                f"Live viewer for session available at: https://api.notte.cc/sessions/viewer/index.html?ws=wss://api.notte.cc/sessions/{session_id}/debug/recording?token={self.token}"
+                            )
+
+                except json.JSONDecodeError:
+                    continue
+
+        if result is None:
+            raise ValueError("Did not get any result from workflow")
+
+        return WorkflowRunResponse.model_validate_json(result)
 
     def get_curl(self, workflow_id: str, **variables: Any) -> str:
         endpoint = self._start_workflow_run_endpoint_without_run_id(workflow_id=workflow_id)
@@ -418,7 +547,8 @@ class RemoteWorkflow:
             logger.info(f"[Workflow] {response.workflow_id} created successfully.")
         else:
             response = _client.workflows.get(workflow_id=workflow_id)
-            logger.info(f"[Workflow] {response.workflow_id} retrieved successfully.")
+            print(response)
+            logger.info(f"[Workflow] {response.workflow_id} metadata retrieved successfully.")
         # init attributes
         self.client: WorkflowsClient = _client.workflows
         self.root_client: NotteClient = _client
@@ -536,8 +666,10 @@ class RemoteWorkflow:
         local: bool = False,
         restricted: bool = True,
         timeout: int | None = None,
+        stream: bool = True,
         raise_on_failure: bool = True,
         workflow_run_id: str | None = None,
+        log_callback: Callable[[str], None] | None = None,
         **variables: Any,
     ) -> WorkflowRunResponse:
         """
@@ -559,6 +691,10 @@ class RemoteWorkflow:
         if workflow_run_id is None:
             create_run_response = self.client.create_run(self.workflow_id)
             workflow_run_id = create_run_response.workflow_run_id
+
+        if log_callback is not None and not local:
+            raise ValueError("Log callback can only set when running workflow locally")
+
         self._workflow_run_id = workflow_run_id
         logger.info(
             f"[Workflow Run] {workflow_run_id} created and scheduled for {'local' if local else 'cloud'} execution with raise_on_failure={raise_on_failure}."
@@ -566,7 +702,7 @@ class RemoteWorkflow:
         if local:
             code = self.download(workflow_path=None, version=version)
             exception: Exception | None = None
-            log_capture = LogCapture()
+            log_capture = LogCapture(write_callback=log_callback)
             try:
                 with log_capture:
                     result = SecureScriptRunner(notte_module=self.root_client).run_script(  # pyright: ignore [reportArgumentType]
@@ -602,6 +738,7 @@ class RemoteWorkflow:
         res = self.client.run(
             workflow_id=self.response.workflow_id,
             workflow_run_id=workflow_run_id,
+            stream=stream,
             timeout=timeout,
             variables=variables,
         )
