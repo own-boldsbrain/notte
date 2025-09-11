@@ -38,4 +38,25 @@ rm -rf .venv
 uv venv --python 3.11
 source .venv/bin/activate
 uv pip install --upgrade notte-sdk
-uv run python agent.py
+
+# Capture the output and exit status of the test
+if output=$(uv run python agent.py 2>&1); then
+    echo "Test completed successfully"
+    {
+      echo 'TEST_OUTPUT<<__GHA_EOF__'
+      echo 'Test passed successfully'
+      echo '__GHA_EOF__'
+    } >> "$GITHUB_ENV"
+    exit 0
+else
+    exit_code=$?
+    echo "Test failed with exit code: $exit_code"
+    {
+      echo 'TEST_OUTPUT<<__GHA_EOF__'
+      echo "Test failed with exit code ${exit_code}"
+      echo
+      printf '%s\n' "$output"
+      echo '__GHA_EOF__'
+    } >> "$GITHUB_ENV"
+    exit "$exit_code"
+fi
