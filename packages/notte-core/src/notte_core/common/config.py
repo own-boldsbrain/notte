@@ -142,7 +142,13 @@ class LlmModel(StrEnum):
 
     @staticmethod
     def use_strict_response_format(val: "str | LlmModel") -> bool:
-        return not val.startswith(str(LlmProvider.cerebras)) and "gemini-2.0-flash" not in str(val)
+        if val.startswith(str(LlmProvider.cerebras)):
+            # all cerebras models do not support strict response format
+            return False
+        if "gemini-2.0-flash" in str(val):
+            # strict response format does not work with gemini-2.0-flash
+            return False
+        return True
 
     @staticmethod
     def default() -> "LlmModel":

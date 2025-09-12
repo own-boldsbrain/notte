@@ -141,9 +141,6 @@ class NotteAgent(BaseAgent):
                 if tool_calls:
                     self._tool_calls[str(hash(response.model_dump_json()))] = tool_calls
             else:
-                use_strict = True
-                if "openai" in self.llm.model:
-                    use_strict = False
                 response: AgentCompletion = await self.llm.structured_completion(
                     messages,
                     response_format=AgentCompletion,
