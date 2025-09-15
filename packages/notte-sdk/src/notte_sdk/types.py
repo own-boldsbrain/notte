@@ -1710,6 +1710,7 @@ class ListWorkflowsResponse(SdkBaseModel):
 
 class CreateWorkflowRunRequest(SdkBaseModel):
     workflow_id: Annotated[str, Field(description="The ID of the workflow")]
+    local: Annotated[bool, Field(description="Whether to run the workflow locally, or in cloud")] = False
 
 
 class StartWorkflowRunRequest(SdkBaseModel):
@@ -1742,6 +1743,7 @@ class GetWorkflowRunResponse(SdkBaseModel):
         default_factory=dict
     )
     result: Annotated[str | None, Field(description="The result of the workflow run (if any)")] = None
+    local: Annotated[bool, Field(description="Whether the workflow has been run locally or on the cloud")] = False
 
 
 class WorkflowRunUpdateRequestDict(TypedDict, total=False):

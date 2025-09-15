@@ -333,8 +333,8 @@ class WorkflowsClient(BaseClient):
         params = ListWorkflowsRequest.model_validate(data)
         return self.request(self._list_workflows_endpoint().with_params(params))
 
-    def create_run(self, workflow_id: str) -> CreateWorkflowRunResponse:
-        request = CreateWorkflowRunRequest(workflow_id=workflow_id)
+    def create_run(self, workflow_id: str, local: bool = False) -> CreateWorkflowRunResponse:
+        request = CreateWorkflowRunRequest(workflow_id=workflow_id, local=local)
         return self.request(self._create_workflow_run_endpoint(workflow_id).with_request(request))
 
     def get_run(self, workflow_id: str, run_id: str) -> GetWorkflowRunResponse:
@@ -354,17 +354,6 @@ class WorkflowsClient(BaseClient):
         """
         request = ListWorkflowRunsRequest.model_validate(data)
         return self.request(self._list_workflow_runs_endpoint(workflow_id).with_params(request))
-
-    @staticmethod
-    def extract_session_id(s: str) -> str | None:
-        """
-        Extracts the session ID (UUID) from a log line containing
-        '[Session] <uuid> started with request'.
-        Returns None if no match is found.
-        """
-        pattern = r"\[Session\]\s+([0-9a-fA-F-]{36})\s+started with request"
-        match = re.search(pattern, s)
-        return match.group(1) if match else None
 
     @staticmethod
     def decode_message(text: str):
@@ -464,6 +453,7 @@ class WorkflowsClient(BaseClient):
 
         result: Any | None = None
 
+        session_id = None
         with requests.post(url=url, headers=headers, data=req_data, timeout=timeout, stream=True) as res:
             res.raise_for_status()
             for line in res.iter_lines():
@@ -482,10 +472,9 @@ class WorkflowsClient(BaseClient):
                             logger.opt(colors=True).info(decoded)
                         elif message["type"] == "result":
                             result = log_msg
+                        elif message["type"] == "session_start":
+                            session_id = log_msg
 
-                        session_id = WorkflowsClient.extract_session_id(log_msg)
-
-                        if session_id is not None:
                             logger.info(
                                 f"Live viewer for session available at: https://api.notte.cc/sessions/viewer/index.html?ws=wss://api.notte.cc/sessions/{session_id}/debug/recording?token={self.token}"
                             )
@@ -688,7 +677,7 @@ class RemoteWorkflow:
         """
         # first create the run on DB
         if workflow_run_id is None:
-            create_run_response = self.client.create_run(self.workflow_id)
+            create_run_response = self.client.create_run(self.workflow_id, local=local)
             workflow_run_id = create_run_response.workflow_run_id
 
         if log_callback is not None and not local:
