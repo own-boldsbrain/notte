@@ -7,22 +7,20 @@ However, it is possible to use your own browsers by providing a `BrowserWindow` 
 Here is an example of how to setup `Steel` as the base session manager for Notte Agents.
 
 > [!NOTE]
-> You need to install the `notte-integrations` package to be able to use the `SteelSessionsManager`.
+> You need to install the `notte-integrations` package to be able to use the different external session managers.
 
 ```python
-from notte_integrations.sessions import configure_sessions_manager
-import notte
-
+from notte_integrations.sessions import AnchorSession
+from notte_sdk import NotteClient
 
 from dotenv import load_dotenv
 
 _ = load_dotenv()
 
-# you need to export the STEEL_API_KEY environment variable
-configure_sessions_manager("steel")
-
-with notte.Session() as session:
-    agent = notte.Agent(session=session)
+client = NotteClient()
+# you need to export the ANCHOR_API_KEY environment variable
+with AnchorSession(client=client) as session:
+    agent = client.Agent(session=session)
     result = agent.run(task="go to x.com and describe what you see")
 ```
 
@@ -31,3 +29,4 @@ with notte.Session() as session:
 - [Steel](https://steel.dev/)
 - [Browserbase](https://browserbase.com/)
 - [Anchor](https://anchorbrowser.io/)
+- [HyperBrowser](https://hyperbrowser.ai/)
