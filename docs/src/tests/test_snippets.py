@@ -99,6 +99,18 @@ def handle_agent(
     run_example(eval_example, code=code)
 
 
+@handle_file("personas/create_account.mdx")
+def handle_create_account(
+    eval_example: EvalExample,
+    code: str,
+) -> None:
+    client = NotteClient()
+    persona = client.Persona("23ae78af-93b4-4aeb-ba21-d18e1496bdd9")
+    persona.vault.delete_credentials(url="https://console.notte.cc")
+    code = code.replace("<your-persona-id>", "23ae78af-93b4-4aeb-ba21-d18e1496bdd9")
+    run_example(eval_example, code=code)
+
+
 @handle_file("scraping/agent.mdx")
 def handle_scraping_agent(
     eval_example: EvalExample,
