@@ -1601,6 +1601,9 @@ class CreateWorkflowRequestDict(TypedDict, total=True):
     """
 
     workflow_path: str
+    name: NotRequired[str | None]
+    description: NotRequired[str | None]
+    shared: NotRequired[bool]
 
 
 class UpdateWorkflowRequestDict(TypedDict):
@@ -1661,6 +1664,13 @@ class RunWorkflowRequest(SdkBaseModel):
 # Workflow request models
 class CreateWorkflowRequest(SdkBaseModel):
     workflow_path: Annotated[str, Field(description="The path to the workflow to upload")]
+    name: Annotated[str | None, Field(description="The name of the workflow run")] = None
+    description: Annotated[str | None, Field(description="The description of the workflow run")] = None
+    shared: Annotated[bool, Field(description="Whether the workflow run is public and shared with other users")] = False
+
+
+class ForkWorkflowRequest(SdkBaseModel):
+    workflow_id: Annotated[str, Field(description="The ID of the workflow to fork")]
 
 
 class GetWorkflowResponse(SdkBaseModel):
@@ -1671,6 +1681,16 @@ class GetWorkflowResponse(SdkBaseModel):
     versions: Annotated[list[str], Field(description="The versions of the workflow")]
     status: Annotated[str, Field(description="The status of the workflow")]
     name: Annotated[str | None, Field(description="The name of the workflow")] = None
+    description: Annotated[str | None, Field(description="The description of the workflow")] = None
+    shared: Annotated[bool, Field(description="Whether the workflow is public and can beshared with other users")] = (
+        False
+    )
+    reference_workflow_id: Annotated[
+        str | None,
+        Field(
+            description="The ID of the reference workflow (i.e wether the workflow was forked from another workflow or not)"
+        ),
+    ] = None
 
 
 class GetWorkflowWithLinkResponse(GetWorkflowResponse, FileLinkResponse):
@@ -1773,7 +1793,7 @@ class UpdateWorkflowRunResponse(SdkBaseModel):
     workflow_id: str
     workflow_run_id: str
     updated_at: dt.datetime
-    status: Literal["updated"] = "updated"
+    status: Literal["updated", "stopped"] = "updated"
 
 
 class ListWorkflowRunsRequestDict(SessionListRequestDict, total=False):
