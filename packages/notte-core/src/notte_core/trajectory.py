@@ -5,13 +5,25 @@ from dataclasses import dataclass
 from typing import Callable, Literal, TypeAlias, overload
 
 from loguru import logger
+from pydantic import BaseModel
 from typing_extensions import override
 
 from notte_core.agent_types import AgentCompletion
 from notte_core.browser.observation import ExecutionResult, Observation, Screenshot
 from notte_core.profiling import profiler
 
-TrajectoryHoldee = ExecutionResult | Observation | AgentCompletion | Screenshot
+
+class AgentStepStart(BaseModel):
+    step_number: int
+    agent_id: str = ""
+
+
+class AgentStepStop(BaseModel):
+    step_number: int
+    agent_id: str = ""
+
+
+TrajectoryHoldee = ExecutionResult | Observation | AgentCompletion | Screenshot | AgentStepStart | AgentStepStop
 StepId: TypeAlias = int
 
 
@@ -21,7 +33,9 @@ class TrajectoryElement:
         self.step_id: StepId | None = step_id
 
 
-ElementLiteral: TypeAlias = Literal["observation", "execution_result", "agent_completion", "screenshot"]
+ElementLiteral: TypeAlias = Literal[
+    "observation", "execution_result", "agent_completion", "screenshot", "agent_step_start", "agent_step_stop"
+]
 
 
 @dataclass
@@ -39,6 +53,10 @@ class StepBundle:
             return "execution_result"
         elif isinstance(element, Screenshot):
             return "screenshot"
+        elif isinstance(element, AgentStepStart):
+            return "agent_step_start"
+        elif isinstance(element, AgentStepStop):
+            return "agent_step_stop"
         elif isinstance(element, AgentCompletion):  # pyright: ignore [reportUnnecessaryIsInstance]
             return "agent_completion"
         else:
@@ -69,6 +87,7 @@ class Trajectory:
 
     def stop(self) -> None:
         """Stops listing new steps in current view"""
+
         if self._slice is None:
             self._slice = slice(None, len(self._elements))
         else:
@@ -103,29 +122,38 @@ class Trajectory:
             if start >= current_start and start < current_stop
         }
 
-    async def start_step(self) -> StepId:
+    async def start_step(self, agent_id: str = "") -> StepId:
         if self.in_step:
             raise ValueError(f"Currently in step {self._current_step}, stop it before starting a new step")
+
+        if self.main_trajectory is not None:
+            return await self.main_trajectory.start_step(agent_id=agent_id)
 
         last_step_id = max(self._step_starts.keys(), default=-1)
         next_step_id = last_step_id + 1
 
+        await self.append(AgentStepStart(agent_id=agent_id, step_number=next_step_id))
+
         self._step_starts[next_step_id] = len(self._elements)
         self._current_step = next_step_id
+
         return self._current_step
 
-    async def stop_step(self, ignore_not_in_step: bool = False) -> StepId | None:
+    async def stop_step(self, ignore_not_in_step: bool = False, agent_id: str = "") -> StepId | None:
         if self.main_trajectory is not None:
-            return await self.main_trajectory.stop_step(ignore_not_in_step=ignore_not_in_step)
-        else:
-            if not self.in_step and not ignore_not_in_step:
-                raise ValueError("Not currently in step, can't stop current step")
-            tmp = self._current_step
-            self._current_step = None
+            return await self.main_trajectory.stop_step(ignore_not_in_step=ignore_not_in_step, agent_id=agent_id)
 
-            # actually stopped a step, apply callback
-            if tmp is not None and (callback := self.callbacks.get("step")) is not None:
+        if not self.in_step and not ignore_not_in_step:
+            raise ValueError("Not currently in step, can't stop current step")
+        tmp = self._current_step
+        self._current_step = None
+
+        # actually stopped a step, apply callback
+        if tmp is not None:
+            if (callback := self.callbacks.get("step")) is not None:
                 await callback(self._get_by_step(tmp))
+
+            await self.append(AgentStepStop(agent_id=agent_id, step_number=tmp))
 
         return tmp
 
@@ -161,7 +189,8 @@ class Trajectory:
         return (element.inner for element in self.inner_elements)
 
     def debug_log(self) -> None:
-        for line in str(self).split("\n"):
+        obtained_str = str(self)
+        for line in obtained_str.split("\n"):
             color = (
                 "b"
                 if "Observation" in line
@@ -180,7 +209,7 @@ class Trajectory:
         return self.inner_elements[index].inner
 
     def __len__(self) -> int:
-        return len(self.inner_elements)
+        return sum(1 for elem in self.inner_elements if not isinstance(elem.inner, (AgentStepStart, AgentStepStop)))
 
     @overload
     def set_callback(
@@ -215,6 +244,20 @@ class Trajectory:
         self,
         on: Literal["screenshot"],
         callback: Callable[[Screenshot], Awaitable[None]],
+    ) -> None: ...
+
+    @overload
+    def set_callback(
+        self,
+        on: Literal["agent_step_start"],
+        callback: Callable[[AgentStepStart], Awaitable[None]],
+    ) -> None: ...
+
+    @overload
+    def set_callback(
+        self,
+        on: Literal["agent_step_stop"],
+        callback: Callable[[AgentStepStop], Awaitable[None]],
     ) -> None: ...
 
     @overload
@@ -416,6 +459,10 @@ class Trajectory:
                 case Observation():
                     url = element.metadata.url if hasattr(element.metadata, "url") else "unknown"
                     lines.append(f" Observation({url}{step_id_str})")
+                case AgentStepStart():
+                    lines.append(f" AgentStepStart({element.step_number})")
+                case AgentStepStop():
+                    lines.append(f" AgentStepStop({element.step_number})")
                 case ExecutionResult():
                     action_name = type(element.action).__name__ if element.action else "None"
                     success = element.success
