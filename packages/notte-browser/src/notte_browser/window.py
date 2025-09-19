@@ -20,7 +20,7 @@ from notte_core.browser.snapshot import (
 from notte_core.common.config import BrowserType, CookieDict, PlaywrightProxySettings, config
 from notte_core.errors.processing import SnapshotProcessingError
 from notte_core.profiling import profiler
-from notte_core.utils.raw_file import get_empty_dom_node, get_file_ext
+from notte_core.utils.raw_file import get_empty_dom_node, get_file_ext, get_filename
 from notte_core.utils.url import is_valid_url
 from notte_sdk.types import (
     DEFAULT_HEADLESS_VIEWPORT_HEIGHT,
@@ -187,21 +187,48 @@ class BrowserWindow(BaseModel):
 
     @property
     def page(self) -> Page:
+        if self.resource.page.url != "about:blank" and self.resource.page.is_closed():
+            # reset to the last created page
+            self.resource.page = self.resource.page.context.pages[-1]
         return self.resource.page
+
+    @property
+    def tabs(self) -> list[Page]:
+        return self.resource.page.context.pages
 
     async def close(self) -> None:
         if self.on_close is not None:
             await self.on_close()
-        for tab in self.tabs:
-            await tab.close()
+        for page in self.resource.page.context.pages:
+            if not page.is_closed():
+                await page.close()
 
-    @property
+    @page.setter
+    def page(self, page: Page) -> None:
+        self.resource.page = page
+        self.apply_page_callbacks()
+
     def is_file(self) -> bool:
+        if self.goto_response is None:
+            return get_file_ext(headers=None, url=self.page.url) is not None
+
+        if self.goto_response.url != self.page.url:
+            self.goto_response = None
+            return self.is_file()
+
         return (
-            self.goto_response is not None
-            and "content-type" in self.goto_response.headers
+            "content-type" in self.goto_response.headers
             and "text/html" not in self.goto_response.headers["content-type"]
         )
+
+    async def download_file(self) -> tuple[bytes, str]:
+        if not self.is_file():
+            raise ValueError("Page is not a file")
+        resp = await self.page.request.get(self.page.url)
+
+        headers = resp.headers
+        filename = get_filename(headers, self.page.url)
+        return await resp.body(), filename
 
     @property
     def port(self) -> int:
@@ -227,15 +254,6 @@ class BrowserWindow(BaseModel):
     async def ws_page_url(self, tab_idx: int | None = None) -> str:
         page_id = await self.page_id(tab_idx)
         return f"ws://localhost:{self.port}/devtools/page/{page_id}"
-
-    @page.setter
-    def page(self, page: Page) -> None:
-        self.resource.page = page
-        self.apply_page_callbacks()
-
-    @property
-    def tabs(self) -> list[Page]:
-        return self.page.context.pages
 
     @profiler.profiled()
     async def long_wait(self) -> None:
@@ -348,10 +366,13 @@ class BrowserWindow(BaseModel):
         try:
             snapshot_metadata = await self.snapshot_metadata()
 
-            if self.is_file and self.goto_response:
+            if self.is_file():
+                ext = get_file_ext(
+                    headers=self.goto_response.headers if self.goto_response is not None else None, url=self.page.url
+                )
                 download_el = get_empty_dom_node(
                     id="I0",
-                    text=f"Download entire page as raw {get_file_ext(self.goto_response.headers)} file. Use download_file, not click.",
+                    text=f"Download entire page as raw {ext or ''} file. Use download_file, not click.",
                 )
                 dom_node.children.insert(0, download_el)
                 download_el.set_parent(dom_node)
