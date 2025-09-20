@@ -10,6 +10,10 @@ from notte_core.utils.raw_file import get_file_ext, get_filename
     "url,expected_extension",
     [
         # Basic cases
+        (
+            "https://www.tnpublicnotice.com/(S(dio1rlet3opfjtthf1nrr12p))/PDFDocument.aspx?SID=dio1rlet3opfjtthf1nrr12p3691222&FileName=0764-131844.PDF",
+            "pdf",
+        ),
         ("https://example.com/file.pdf", "pdf"),
         ("https://example.com/image.png", "png"),
         ("https://example.com/document.docx", "docx"),
