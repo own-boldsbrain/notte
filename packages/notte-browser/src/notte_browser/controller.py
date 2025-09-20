@@ -334,6 +334,10 @@ class BrowserController:
                     file_path = Path(self.storage.download_dir) / filename
                     with open(file_path, "wb") as f:
                         _ = f.write(file_content)
+                elif action.selector.playwright_selector == "html":
+                    raise ValueError(
+                        f"DownloadFileAction with selector 'html' cannot be performed for {window.page.url} because it is a raw file"
+                    )
                 else:
                     async with window.page.expect_download() as dw:
                         await locator.click()
