@@ -336,7 +336,7 @@ class BrowserController:
                         _ = f.write(file_content)
                 elif action.selector.playwright_selector == "html":
                     raise ValueError(
-                        f"DownloadFileAction with selector='html' can only be performed on RAW files urls but url='{window.page.url}'"
+                        f"Action: '{action.name()}' with selector='html' can only be performed on RAW files urls but url='{window.page.url}'"
                     )
                 else:
                     async with window.page.expect_download() as dw:
