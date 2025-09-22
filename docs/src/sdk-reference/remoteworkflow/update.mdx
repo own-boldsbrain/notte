@@ -1,6 +1,6 @@
 ---
-title: "update"
-description: "Update the workflow with a a new code version"
+title: "atualizar"
+description: "Atualize o workflow com uma nova versão do código"
 ---
 
 
@@ -10,10 +10,10 @@ workflow = notte.Workflow("<your-workflow-id>")
 workflow.update(workflow_path="<path-to-your-workflow.py>")
 ```
 
-If you set a version, only that version will be updated
+Se você definir uma versão, apenas essa versão será atualizada
 
 
-## Parameters
+## Parâmetros
 
 <ParamField path="workflow_path" type="str" required>
 </ParamField>
@@ -21,6 +21,6 @@ If you set a version, only that version will be updated
 <ParamField path="version" type="UnionType[str, None]" default="None">
 </ParamField>
 
-## Returns
+## Retorna
 
 `None`
