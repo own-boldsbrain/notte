@@ -1,23 +1,23 @@
 ---
 title: "run"
-description: "Run the workflow using the specified version and variables"
+description: "Executa o workflow usando a versão especificada e as variáveis"
 ---
 
 
 
-If no version is provided, the latest version is used.
+Se nenhuma versão for fornecida, a versão mais recente é usada.
 
 ```python
 workflow = notte.Workflow("<your-workflow-id>")
 workflow.run(variable1="value1", variable2="value2")
 ```
 
-> Make sure that the correct variables are provided based on the python file previously uploaded. Otherwise, the workflow will fail.
+> Certifique-se de que as variáveis corretas sejam fornecidas com base no arquivo Python enviado anteriormente. Caso contrário, o workflow falhará.
 
-You can use `local=True` to run the workflow locally if you have access to the decryption key
+Você pode usar `local=True` para executar o workflow localmente se tiver acesso à chave de descriptografia
 
 
-## Parameters
+## Parâmetros
 
 <ParamField path="version" type="UnionType[str, None]" default="None">
 </ParamField>
@@ -46,6 +46,6 @@ You can use `local=True` to run the workflow locally if you have access to the d
 <ParamField path="variables" type="Any" required>
 </ParamField>
 
-## Returns
+## Retorna
 
 [`WorkflowRunResponse`](/sdk-reference/misc/workflowrunresponse)
